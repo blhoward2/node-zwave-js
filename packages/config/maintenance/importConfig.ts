@@ -385,6 +385,8 @@ function normalizeConfig(config: Record<string, any>): Record<string, any> {
 
 		for (const [key, original] of entries) {
 			const param: Record<string, any> = {
+				$if: original.$if,
+				$import: original.$import,
 				label: original.label,
 				description: original.description,
 				valueSize: original.valueSize,
@@ -399,9 +401,19 @@ function normalizeConfig(config: Record<string, any>): Record<string, any> {
 				options: original.options,
 			};
 
-			if (!param.unsigned) delete param.unsigned;
-			if (!param.unit) delete param.unit;
+			if (!param.$if) delete param.$if;
+			if (!param.$import) delete param.$import;
+			if (!param.label) delete param.label;
 			if (!param.description) delete param.description;
+			if (!param.valueSize) delete param.valueSize;
+			if (!param.unit) delete param.unit;
+			if (!param.minValue) delete param.minValue;
+			if (!param.maxValue) delete param.maxValue;
+			if (!param.defaultValue) delete param.defaultValue;
+			if (!param.unsigned) delete param.unsigned;
+			if (!param.readOnly) delete param.readOnly;
+			if (!param.writeOnly) delete param.writeOnly;
+			if (!param.allowManualEntry) delete param.allowManualEntry;
 
 			if (!param.options || param.options.length === 0) {
 				delete param.options;
@@ -760,6 +772,16 @@ async function parseZWAFiles(): Promise<void> {
 			console.log(`Missing identifier: ${file.Id}`);
 		}
 	}
+
+	// Temp limit to specified manufacturers
+	for (let file of jsonData) {
+		if (file.ManufacturerId == "0x000C") {
+			continue;
+		} else {
+			delete file.ProductId;
+		}
+	}
+
 	// Combine provided files within models
 	jsonData = combineDeviceFiles(jsonData);
 
@@ -1228,6 +1250,11 @@ async function parseZWAProduct(
 	for (const param of parameters) {
 		const parsedParam =
 			newConfig.paramInformation[param.ParameterNumber] ?? {};
+
+		if (parsedParam.$import) {
+			continue;
+		}
+
 		// By default, update existing properties with new descriptions
 		parsedParam.label = param.Name || parsedParam.label;
 		parsedParam.label = normalizeLabel(parsedParam.label);
