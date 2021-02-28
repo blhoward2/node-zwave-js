@@ -95,13 +95,13 @@ const program = yargs
 // Where the files are located
 const processedDir = path.join(
 	__dirname,
-	"../packages/config",
+	"../../../packages/config",
 	"config/devices",
 );
 
 const configManager = new ConfigManager();
 
-const ozwTempDir = path.join(__dirname, "../.tmpozw");
+const ozwTempDir = path.join(__dirname, "../../../.tmpozw");
 const ozwTarName = "openzwave.tar.gz";
 const ozwTarUrl =
 	"https://github.com/OpenZWave/open-zwave/archive/master.tar.gz";
@@ -110,7 +110,7 @@ const ozwConfigFolder = path.join(ozwTempDir, "./config");
 const zwaTempDir = path.join(__dirname, "../../../.tmpzwa");
 const zwaConfigFolder = path.join(zwaTempDir, "./config");
 
-const ohTempDir = path.join(__dirname, "../.tmpoh");
+const ohTempDir = path.join(__dirname, "../../../.tmpoh");
 const importedManufacturersPath = path.join(ohTempDir, "manufacturers.json");
 
 // Where all the information can be found
@@ -1449,11 +1449,6 @@ async function parseZWAProduct(
 		zwavePlus === false
 	) {
 		newConfig.associations = newAssociations;
-	}
-
-	// TEMP -- skip no param files
-	if (Object.keys(newConfig.paramInformation).length === 0) {
-		return;
 	}
 
 	// Warn if the device file requires conflicts to be resolved
