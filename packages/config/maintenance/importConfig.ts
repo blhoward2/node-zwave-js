@@ -401,19 +401,24 @@ function normalizeConfig(config: Record<string, any>): Record<string, any> {
 				options: original.options,
 			};
 
-			if (!param.$if) delete param.$if;
-			if (!param.$import) delete param.$import;
-			if (!param.label) delete param.label;
-			if (!param.description) delete param.description;
-			if (!param.valueSize) delete param.valueSize;
-			if (!param.unit) delete param.unit;
-			if (!param.minValue) delete param.minValue;
-			if (!param.maxValue) delete param.maxValue;
-			if (!param.defaultValue) delete param.defaultValue;
-			if (!param.unsigned) delete param.unsigned;
-			if (!param.readOnly) delete param.readOnly;
-			if (!param.writeOnly) delete param.writeOnly;
-			if (!param.allowManualEntry) delete param.allowManualEntry;
+			if (typeof param.$if === "undefined") delete param.$if;
+			if (typeof param.$import === "undefined") delete param.$import;
+			if (typeof param.label === "undefined" || param.label === "")
+				delete param.label;
+			if (
+				typeof param.description === "undefined" ||
+				param.description === ""
+			)
+				delete param.description;
+			if (typeof param.valueSize === "undefined") delete param.valueSize;
+			if (typeof param.unit === "undefined") delete param.unit;
+			if (typeof param.defaultValue === "undefined")
+				delete param.defaultValue;
+			if (typeof param.unsigned === "undefined") delete param.unsigned;
+			if (typeof param.readOnly === "undefined") delete param.readOnly;
+			if (typeof param.writeOnly === "undefined") delete param.writeOnly;
+			if (typeof param.allowManualEntry === "undefined")
+				delete param.allowManualEntry;
 
 			if (!param.options || param.options.length === 0) {
 				delete param.options;
@@ -422,6 +427,9 @@ function normalizeConfig(config: Record<string, any>): Record<string, any> {
 				param.minValue = Math.min(...values);
 				param.maxValue = Math.max(...values);
 			}
+
+			if (typeof param.minValue === "undefined") delete param.minValue;
+			if (typeof param.maxValue === "undefined") delete param.maxValue;
 
 			normalizedParamInfo[key] = param;
 		}
@@ -775,7 +783,10 @@ async function parseZWAFiles(): Promise<void> {
 
 	// Temp limit to specified manufacturers
 	for (let file of jsonData) {
-		if (file.ManufacturerId == "0x000C") {
+		if (
+			file.ManufacturerId == "0x0086" ||
+			file.ManufacturerId == "0x0371"
+		) {
 			continue;
 		} else {
 			delete file.ProductId;
@@ -996,7 +1007,7 @@ function combineDeviceFiles(json: Array<object>) {
 					) == false
 				) {
 					console.log(
-						`ERROR ERROR ERROR - Will end up with duplicate device file due to firmware change -- ${file.Id} and ${test_file.Id}`,
+						`WARNING - Detected possible firmware parameter change ${file.Identifer} -- ${file.Id} and ${test_file.Id}`,
 					);
 				}
 				// We were wrong to change the identifier because the params don't match, restore the tested file as it is different
