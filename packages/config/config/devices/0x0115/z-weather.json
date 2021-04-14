@@ -8,36 +8,44 @@
 	"devices": [
 		{
 			"productType": "0x0100",
-			"productId": "0x0400"
+			"productId": "0x0400",
+			"zwaveAllianceId": 1424
 		}
 	],
 	"firmwareVersion": {
 		"min": "0.0",
 		"max": "255.255"
 	},
-	"supportsZWavePlus": true,
 	"paramInformation": {
 		"1": {
-			"label": "Wind Speed Action Threshold",
-			"description": "Available Parameters: 0 - Off 1 - 30 in milliseconds Default = 6 m/s",
+			"label": "Threshold For Too Much Wind",
+			"description": "Crossing this parameter on the rising edge, z-weather sends a Basic Set to the associated groups, serves the lifeline and sends a wake up notification",
 			"valueSize": 1,
 			"minValue": 0,
 			"maxValue": 30,
 			"defaultValue": 6,
+			"unsigned": true,
 			"readOnly": false,
 			"writeOnly": false,
 			"allowManualEntry": true
 		},
 		"2": {
-			"label": "Twilight Action Threshold",
-			"description": "Set from 0 - 100 % Default = 37% (street lighting)",
+			"label": "Threshold For Twilight",
+			"description": "Crossing this parameter from night to day, association group 3 is informed. crossing this parameter from day to night, association group 4 is informed",
 			"valueSize": 1,
 			"minValue": 0,
 			"maxValue": 100,
 			"defaultValue": 37,
+			"unsigned": true,
 			"readOnly": false,
 			"writeOnly": false,
 			"allowManualEntry": true
 		}
+	},
+	"metadata": {
+		"inclusion": "Push the button 3 times within 1.5 seconds. If the LED is not blinking after releasing the button, Z-Weather has not enough energy and must be charged for several hours in bright sunlight.",
+		"exclusion": "Push the button 3 times within 1.5 seconds",
+		"reset": "Hold the button longer than 1.5 seconds and then release.\nThe LED blinks longer than when pressing the button once.\nZ-Weather performs a factory reset and all configuration parameters are reset to their default values. Use this procedure only when the network primary controller is missing or otherwise inoperable.",
+		"manual": "https://products.z-wavealliance.org/ProductManual/File?folder=&filename=MarketCertificationFiles/1424/Z-Weather%20Manual_v1.3.pdf"
 	}
 }
