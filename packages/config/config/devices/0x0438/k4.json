@@ -1,7 +1,7 @@
-// Namron K4
+// Namron AS K4
 // 2-Channel Wireless Switch
 {
-	"manufacturer": "Namron",
+	"manufacturer": "Namron AS",
 	"manufacturerId": "0x0438",
 	"label": "K4",
 	"description": "2-Channel Wireless Switch",

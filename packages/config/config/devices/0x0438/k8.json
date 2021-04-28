@@ -1,7 +1,7 @@
-// Namron K8
+// Namron AS K8
 // 4-Channel Wireless Switch
 {
-	"manufacturer": "Namron",
+	"manufacturer": "Namron AS",
 	"manufacturerId": "0x0438",
 	"label": "K8",
 	"description": "4-Channel Wireless Switch",
@@ -9,7 +9,7 @@
 		{
 			"productType": "0x0300",
 			"productId": "0xa305",
-			"zwaveAllianceId": 3693
+			"zwaveAllianceId": 3639
 		}
 	],
 	"firmwareVersion": {
