@@ -356,8 +356,8 @@
 			}
 		]
 	},
-	"current_threshold": {
-		"label": "Current Change Threshold",
+	"power_threshold": {
+		"label": "Power Change Threshold",
 		"description": "Threshold change in power consumption to induce an automatic report",
 		"valueSize": 2,
 		"unit": "W",
@@ -369,24 +369,24 @@
 		"writeOnly": false,
 		"allowManualEntry": true
 	},
-	"current_threshold_clamp1": {
-		"$import": "#current_threshold",
-		"label": "Current Change Threshold (Clamp 1)"
+	"power_threshold_clamp1": {
+		"$import": "#power_threshold",
+		"label": "Power Change Threshold (Clamp 1)"
 	},
-	"current_threshold_clamp2": {
-		"$import": "#current_threshold",
-		"label": "Current Change Threshold (Clamp 2)"
+	"power_threshold_clamp2": {
+		"$import": "#power_threshold",
+		"label": "Power Change Threshold (Clamp 2)"
 	},
-	"current_threshold_clamp3": {
-		"$import": "#current_threshold",
-		"label": "Current Change Threshold (Clamp 3)"
+	"power_threshold_clamp3": {
+		"$import": "#power_threshold",
+		"label": "Power Change Threshold (Clamp 3)"
 	},
-	"current_threshold_wholehem": {
-		"$import": "#current_threshold",
-		"label": "Current Change Threshold (Whole HEM)"
+	"power_threshold_wholehem": {
+		"$import": "#power_threshold",
+		"label": "Power Change Threshold (Whole HEM)"
 	},
 	"percent_threshold": {
-		"label": "Current Percentage Change Threshold",
+		"label": "Power Percentage Change Threshold",
 		"description": "Threshold change in power consumption (on a percentage basis) to induce an automatic report",
 		"valueSize": 1,
 		"unit": "%",
@@ -400,19 +400,19 @@
 	},
 	"percent_threshold_clamp1": {
 		"$import": "#percent_threshold",
-		"label": "Current Percentage Threshold (Clamp 1)"
+		"label": "Power Percentage Threshold (Clamp 1)"
 	},
 	"percent_threshold_clamp2": {
 		"$import": "#percent_threshold",
-		"label": "Current Percentage Threshold (Clamp 2)"
+		"label": "Power Percentage Threshold (Clamp 2)"
 	},
 	"percent_threshold_clamp3": {
 		"$import": "#percent_threshold",
-		"label": "Current Percentage Threshold (Clamp 3)"
+		"label": "Power Percentage Threshold (Clamp 3)"
 	},
 	"percent_threshold_wholehem": {
 		"$import": "#percent_threshold",
-		"label": "Current Percentage Threshold (Whole HEM)"
+		"label": "Power Percentage Threshold (Whole HEM)"
 	},
 	"reset_parameters": {
 		"valueSize": 1,
@@ -708,6 +708,11 @@
 		"label": "Automatic Report: Group 1 - Voltage (Clamp 2)",
 		"valueSize": 4
 	},
+	"auto_report_group1_v_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 1 - Voltage (Clamp 3)",
+		"valueSize": 4
+	},
 	"auto_report_group1_v_wholehem": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 1 - Voltage (Whole HEM)",
@@ -726,6 +731,11 @@
 	"auto_report_group1_amp_clamp2": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 1 - Current (Clamp 2)",
+		"valueSize": 4
+	},
+	"auto_report_group1_amp_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 1 - Current (Clamp 3)",
 		"valueSize": 4
 	},
 	"auto_report_group1_amp_wholehem": {
@@ -828,6 +838,11 @@
 		"label": "Automatic Report: Group 2 - Voltage (Clamp 2)",
 		"valueSize": 4
 	},
+	"auto_report_group2_v_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 2 - Voltage (Clamp 3)",
+		"valueSize": 4
+	},
 	"auto_report_group2_v_wholehem": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 2 - Voltage (Whole HEM)",
@@ -846,6 +861,11 @@
 	"auto_report_group2_amp_clamp2": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 2 - Current (Clamp 2)",
+		"valueSize": 4
+	},
+	"auto_report_group2_amp_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 2 - Current (Clamp 3)",
 		"valueSize": 4
 	},
 	"auto_report_group2_amp_wholehem": {
@@ -948,6 +968,11 @@
 		"label": "Automatic Report: Group 3 - Voltage (Clamp 2)",
 		"valueSize": 4
 	},
+	"auto_report_group3_v_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 3 - Voltage (Clamp 3)",
+		"valueSize": 4
+	},
 	"auto_report_group3_v_wholehem": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 3 - Voltage (Whole HEM)",
@@ -966,6 +991,11 @@
 	"auto_report_group3_amp_clamp2": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
 		"label": "Automatic Report: Group 3 - Current (Clamp 2)",
+		"valueSize": 4
+	},
+	"auto_report_group3_amp_clamp3": {
+		"$import": "../../templates/master_template.json#base_enable_disable",
+		"label": "Automatic Report: Group 3 - Current (Clamp 3)",
 		"valueSize": 4
 	},
 	"auto_report_group3_amp_wholehem": {
@@ -2046,7 +2076,7 @@
 	"button_unpair": {
 		"label": "Button Unpairing",
 		"valueSize": 1,
-		"minValue": 1,
+		"minValue": 0,
 		"maxValue": 7,
 		"defaultValue": 0,
 		"unsigned": true,
@@ -2054,6 +2084,10 @@
 		"writeOnly": true,
 		"allowManualEntry": false,
 		"options": [
+			{
+				"label": "Normal Operation",
+				"value": 0
+			},
 			{
 				"label": "Unpair Button No. 1",
 				"value": 1
@@ -2063,24 +2097,8 @@
 				"value": 2
 			},
 			{
-				"label": "Unpair Button Nos. 1-2",
-				"value": 3
-			},
-			{
 				"label": "Unpair Button No. 3",
 				"value": 4
-			},
-			{
-				"label": "Unpair Button Nos. 1 & 3",
-				"value": 5
-			},
-			{
-				"label": "Unpair Button Nos. 2 & 3",
-				"value": 6
-			},
-			{
-				"label": "Unpair Button Nos. 1-3",
-				"value": 7
 			}
 		]
 	},
@@ -2262,17 +2280,18 @@
 	// Recover limits
 	"recover_limit_temp": {
 		"label": "Temperature Recover Limit",
-		"description": "Defines the difference below or above the upper/lower limit after which the limit is reenabled ",
+		"description": "Defines the difference below or above the upper/lower limit after which the limit is reenabled",
 		"valueSize": 2,
 		"minValue": 1,
-		"maxValue": 65280,
-		"defaultValue": 5121,
+		"maxValue": 255,
+		"defaultValue": 20,
+		"unsigned": true,
 		"readOnly": false,
 		"writeOnly": false,
 		"allowManualEntry": true
 	},
 	"recover_limit_temp_unit": {
-		"$import": "#celsius_farenheit_0",
+		"$import": "#celsius_fahrenheit_0",
 		"label": "Recover Limit Temperature Unit",
 		"valueSize": 2
 	},
@@ -2293,7 +2312,7 @@
 		"valueSize": 1,
 		"unit": "lux",
 		"minValue": 10,
-		"maxValue": 2550,
+		"maxValue": 255,
 		"defaultValue": 100,
 		"unsigned": true,
 		"readOnly": false,
@@ -2443,7 +2462,17 @@
 	},
 	"wallmote_command_type": {
 		"$import": "../../templates/master_template.json#base_0-1_nounit",
-		"label": "Command Type to Send Association Groups"
+		"label": "Command Type to Send Association Groups",
+		"options": [
+			{
+				"label": "Basic CC Set",
+				"value": 0
+			},
+			{
+				"label": "Binary Switch CC Set",
+				"value": 1
+			}
+		]
 	},
 	"wakeup_led": {
 		"$import": "../../templates/master_template.json#base_enable_disable",
