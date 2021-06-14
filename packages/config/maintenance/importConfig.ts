@@ -327,7 +327,9 @@ function normalizeUnits(unit: string) {
  *
  * @param config Device JSON configuration
  */
-function normalizeConfig(config: Record<string, any>): Record<string, any> {
+export function normalizeConfig(
+	config: Record<string, any>,
+): Record<string, any> {
 	// Top-level key order (comments are not preserved between top-level keys)
 	const topOrder = [
 		"manufacturer",
@@ -790,7 +792,7 @@ async function parseOZWProduct(
 /**
  * Parse a directory of zWave Alliance device xmls
  * */
-async function parseZWAFiles(): Promise<void> {
+export async function parseZWAFiles(): Promise<void> {
 	// Parse json files in the zwaTempDir
 	let jsonData = [];
 
@@ -1580,7 +1582,7 @@ async function maintenanceParse(): Promise<void> {
  * Note: ZWA's search uses different manufacturer IDs than devices
  */
 
-async function retrieveZWADeviceIds(
+export async function retrieveZWADeviceIds(
 	highestDeviceOnly: boolean = true,
 	manufacturer: number[] = [-1],
 ): Promise<number[]> {
@@ -1643,7 +1645,7 @@ async function retrieveZWADeviceIds(
  * Downloads the given device configurations from ZWA
  * @param IDs If given, only these IDs are downloaded
  */
-async function downloadDevicesZWA(IDs: number[]): Promise<void> {
+export async function downloadDevicesZWA(IDs: number[]): Promise<void> {
 	await fs.ensureDir(zwaTempDir);
 	for (let i = 0; i < IDs.length; i++) {
 		process.stdout.write(
