@@ -72,9 +72,33 @@
 				"-r",
 				"tsconfig-paths/register",
 				"${workspaceFolder}/packages/config/maintenance/importConfig.ts",
-				"-dm -s zwa"
+				"-dm",
+				"-s",
+				"zwa"
 			],
 			"console": "integratedTerminal",
+			"disableOptimisticBPs": true
+		},
+		{
+			"type": "node",
+			"name": "Template Config Files",
+			"request": "launch",
+			"program": "${workspaceFolder}/packages/config/maintenance/templateConfig.ts",
+			"cwd": "${workspaceFolder}",
+			"runtimeArgs": [
+				"--async-stack-traces",
+				"--inspect=9229",
+				"-r",
+				"ts-node/register/transpile-only",
+				"-r",
+				"tsconfig-paths/register",
+				"${workspaceFolder}/packages/config/maintenance/templateConfig.ts",
+				"-f",
+				"0x0063",
+				"-t",
+				"ge_template.json"
+			],
+			"console": "externalTerminal",
 			"disableOptimisticBPs": true
 		},
 		{
