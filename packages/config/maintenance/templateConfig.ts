@@ -11,6 +11,7 @@ import * as Colors from "colors";
 import * as JSONC from "comment-json";
 import * as Diff from "diff";
 import * as fs from "fs-extra";
+import levenshtein from "js-levenshtein";
 import * as path from "path";
 import yargs from "yargs";
 import {
@@ -50,11 +51,8 @@ const program = yargs
 	.alias("h", "help").argv;
 
 // Where the files are located
-const processedDir = path.join(
-	__dirname,
-	"../../../packages/config",
-	"config/devices",
-);
+const processedDir = path.join(__dirname, "../config/devices");
+const rootDir = path.join(__dirname, "../../../");
 
 const manuToProcess = program.folder;
 const dir = path.join(processedDir, manuToProcess);
@@ -64,6 +62,7 @@ const templatePath = `templates/${templateName}`;
 
 let jsonData = {};
 let manuTemplateData;
+let followUpList = {};
 
 async function templateParams(): Promise<void> {
 	// Initiliaze the manufacturer template
@@ -111,8 +110,8 @@ async function templateParams(): Promise<void> {
 				continue;
 			}
 
-			let importName;
-			let importNamePath;
+			let importName: unknown = "";
+			const importNamePath = `${templatePath}#${importName}`;
 			for (const testDevice in jsonData) {
 				// Skip the current file
 				if (device === testDevice) {
@@ -120,8 +119,6 @@ async function templateParams(): Promise<void> {
 				}
 
 				for (const testNum in jsonData[testDevice].paramInformation) {
-					let isMatch = false;
-
 					// Skip if its already an import
 					if (
 						jsonData[testDevice].paramInformation[testNum].$import
@@ -129,79 +126,180 @@ async function templateParams(): Promise<void> {
 						continue;
 					}
 
-					// Always consider the same parameter number
+					// Identical parameters, so don't prompt at all
 					if (
-						num === testNum &&
-						jsonData[device].paramInformation[num].minValue ===
-							jsonData[testDevice].paramInformation[testNum]
-								.minValue &&
-						jsonData[device].paramInformation[num].maxValue ===
-							jsonData[testDevice].paramInformation[testNum]
-								.maxValue &&
-						jsonData[device].paramInformation[num].defaultValue ===
-							jsonData[testDevice].paramInformation[testNum]
-								.defaultValue &&
-						jsonData[device].paramInformation[num].valueSize ===
-							jsonData[testDevice].paramInformation[testNum]
-								.valueSize
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "identical"
+					) {
+						importName = await addTemplate(
+							importName,
+							device,
+							num,
+							testDevice,
+							testNum,
+						);
+					}
+					// Prompt for confirmation for all others
+					else if (
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "high" ||
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "medium"
 					) {
 						console.clear();
+						console.log(
+							`Comparing ${jsonData[device].label}, parameter ${num} with ${jsonData[testDevice].label}, parameter ${testNum}`,
+						);
 						compareParamsOnConsole(
 							jsonData[testDevice].paramInformation[testNum],
 							jsonData[device].paramInformation[num],
 						);
-						const response = await askQuestion(
-							"Equivalent Parameter (Y/n)? ",
-						);
 
-						if (response === "wq") {
-							console.log("Quitting!");
-							// Write the files
-							await writeFiles();
-							return;
-						} else if (response !== "n" && response !== "N") {
-							console.log("Adding!");
-							isMatch = true;
+						const isMatch: boolean = await promptToAdd(
+							testDevice,
+							testNum,
+						);
+						if (isMatch) {
+							importName = await addTemplate(
+								importName,
+								device,
+								num,
+								testDevice,
+								testNum,
+							);
 						}
 					}
+					// Template but retain the tested file's defaultValue
+					else if (
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "high-default" ||
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "medium-default"
+					) {
+						console.clear();
+						console.clear();
+						console.log(
+							`Comparing ${jsonData[device].label}, parameter ${num} with ${jsonData[testDevice].label}, parameter ${testNum}`,
+						);
+						compareParamsOnConsole(
+							jsonData[testDevice].paramInformation[testNum],
+							jsonData[device].paramInformation[num],
+						);
+						console.log();
+						console.log(
+							"Note: The tested file's defaultValue will be retained.",
+						);
 
-					if (isMatch) {
-						if (!inTemplate) {
-							if (!importName) {
-								importName = await askQuestion(
-									"Import statement name? ",
-								);
-							}
-							importNamePath = `${templatePath}#${importName}`;
-
-							// Add to manufacturer template
-							manuTemplateData[importName] =
-								jsonData[device].paramInformation[num];
-
-							// Template matching device
-							jsonData[testDevice].paramInformation[testNum] = {};
+						const isMatch: boolean = await promptToAdd(
+							testDevice,
+							testNum,
+						);
+						if (isMatch) {
+							const saveDefault =
+								jsonData[testDevice].paramInformation[testNum]
+									.defaultValue;
+							importName = await addTemplate(
+								importName,
+								device,
+								num,
+								testDevice,
+								testNum,
+							);
 							jsonData[testDevice].paramInformation[
 								testNum
-							].$import = importNamePath;
+							].defaultValue = saveDefault;
+						}
+					}
+					// Template but retain the tested file's valueSize
+					else if (
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "high-value" ||
+						degreeOfSimilarity(
+							num,
+							jsonData[device].paramInformation[num],
+							testNum,
+							jsonData[testDevice].paramInformation[testNum],
+						) === "medium-value"
+					) {
+						console.clear();
+						console.clear();
+						console.log(
+							`Comparing ${jsonData[device].label}, parameter ${num} with ${jsonData[testDevice].label}, parameter ${testNum}`,
+						);
+						compareParamsOnConsole(
+							jsonData[testDevice].paramInformation[testNum],
+							jsonData[device].paramInformation[num],
+						);
+						console.log();
+						console.log(
+							"Note: The tested file's valueSize will be retained.",
+						);
 
-							inTemplate = true;
-						} else {
-							// Template matching device
-							jsonData[testDevice].paramInformation[testNum] = {};
+						const isMatch: boolean = await promptToAdd(
+							testDevice,
+							testNum,
+						);
+						if (isMatch) {
+							const saveValue =
+								jsonData[testDevice].paramInformation[testNum]
+									.valueSize;
+							importName = await addTemplate(
+								importName,
+								device,
+								num,
+								testDevice,
+								testNum,
+							);
 							jsonData[testDevice].paramInformation[
 								testNum
-							].$import = importNamePath;
+							].valueSize = saveValue;
 						}
 					}
 				}
 			}
 			console.log(`Finished: Group ${groupNum}`);
 			// Template first device
-			if (importNamePath) {
-				jsonData[device].paramInformation[num] = {};
-				jsonData[device].paramInformation[num].$import = importNamePath;
+			if (importName.length > 0) {
+				if (jsonData[device].paramInformation[num].$if) {
+					const tempIf = jsonData[device].paramInformation[num].$if;
+					jsonData[device].paramInformation[num] = {};
+					jsonData[device].paramInformation[num].$if = tempIf;
+					// eslint-disable-next-line prettier/prettier
+					jsonData[device].paramInformation[
+						num
+					].$import = importNamePath;
+				} else {
+					jsonData[device].paramInformation[num] = {};
+					// eslint-disable-next-line prettier/prettier
+					jsonData[device].paramInformation[
+						num
+					].$import = importNamePath;
+				}
 			}
-			inTemplate = false;
 			groupNum++;
 		}
 		console.log(`Device Complete: ${jsonData[device].label}`);
@@ -212,7 +310,7 @@ async function templateParams(): Promise<void> {
 	console.log("Finished");
 }
 
-async function askQuestion(query: string) {
+async function promptUser(query: string) {
 	const readline = await import("readline");
 	const rl = readline.createInterface({
 		input: process.stdin,
@@ -227,12 +325,132 @@ async function askQuestion(query: string) {
 	);
 }
 
+async function promptToAdd(testDevice: string, testNum: string) {
+	const response = await promptUser(
+		"(A)dd template reference, (s)kip, (f)ollow-up, or (q)uit? ",
+	);
+
+	if (response == "Q" || response == "q") {
+		await writeFiles();
+		process.exit();
+	} else if (response == "f" || response == "f") {
+		followUpList[testDevice] = followUpList[testDevice] || {};
+		followUpList[testDevice][testNum] =
+			jsonData[testDevice].paramInformation[testNum];
+
+		const note = await promptUser("Note: ");
+		followUpList[testDevice][testNum].note = response;
+		return false;
+	} else if (response === "s" || response === "S") {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+async function addTemplate(
+	importName: unknown,
+	device: string,
+	num: string,
+	testDevice: string,
+	testNum: string,
+) {
+	if (!importName) {
+		importName = await promptUser(
+			"Adding new template reference - Import statement name? ",
+		);
+
+		// Add to manufacturer template
+		manuTemplateData[importName] = jsonData[device].paramInformation[num];
+	}
+	const importNamePath = `${templatePath}#${importName}`;
+
+	// Template matching device, maintaining any conditions
+	if (jsonData[testDevice].paramInformation[testNum].$if) {
+		const tempIf = jsonData[testDevice].paramInformation[testNum].$if;
+		jsonData[testDevice].paramInformation[testNum] = {};
+		jsonData[testDevice].paramInformation[testNum].$if = tempIf;
+		jsonData[testDevice].paramInformation[testNum].$import = importNamePath;
+	} else {
+		jsonData[testDevice].paramInformation[testNum] = {};
+		jsonData[testDevice].paramInformation[testNum].$import = importNamePath;
+	}
+
+	return importName;
+}
+
+function degreeOfSimilarity(
+	originalNum: string,
+	originalParam: Record<string, unknown>,
+	testNum: string,
+	testParam: Record<string, unknown>,
+) {
+	const normalizedDistance =
+		levenshtein(originalParam.label, testParam.label) /
+		Math.max(originalParam.label.length, testParam.label.length);
+
+	if (
+		originalParam.label === testParam.label &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "identical";
+	} else if (
+		originalNum === testNum &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "high";
+	} else if (
+		originalNum === testNum &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "high-default";
+	} else if (
+		originalNum === testNum &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue
+	) {
+		return "high-value";
+	} else if (
+		normalizedDistance < 0.2 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "medium";
+	} else if (
+		normalizedDistance < 0.2 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "medium-default";
+	} else if (
+		normalizedDistance < 0.2 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue
+	) {
+		return "medium-value";
+	} else {
+		return "low";
+	}
+}
+
 function compareParamsOnConsole(
 	originalParam: Record<string, unknown>,
 	testParam: Record<string, unknown>,
 ) {
 	const colors = Colors;
-	console.clear();
 	const diff = Diff.diffLines(
 		JSONC.stringify(originalParam, null, "\t"),
 		JSONC.stringify(testParam, null, "\t"),
@@ -258,6 +476,16 @@ async function writeFiles() {
 			"\t",
 		);
 		await fs.writeFile(device, output, "utf8");
+	}
+
+	// Write our manual follow-up list
+	if (Object.keys(followUpList).length > 0) {
+		const oFollowUp = JSONC.stringify(followUpList, null, "\t");
+		await fs.writeFile(
+			`${rootDir}/templateFollowUp.json`,
+			oFollowUp,
+			"utf8",
+		);
 	}
 }
 
