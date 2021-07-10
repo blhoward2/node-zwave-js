@@ -298,7 +298,7 @@ function ensureArray(json: any): any[] {
 	return isArray(json) ? json : [json];
 }
 
-function normalizeUnits(unit: string) {
+export function normalizeUnits(unit: string): any {
 	if (!unit) return undefined;
 
 	if (/minutes/i.test(unit)) {
@@ -392,6 +392,11 @@ export function normalizeConfig(
 	// Sanitize labels
 	config.label = sanitizeText(config.label) ?? "";
 	config.description = sanitizeText(config.description) ?? "";
+
+	// Remove deprecated keys
+	if (config.supportsZWavePlus) {
+		delete config.supportsZWavePlus;
+	}
 
 	// Sort devices by productType, then productId
 	config.devices.sort((a: any, b: any) => {
@@ -829,9 +834,8 @@ export async function parseZWAFiles(): Promise<void> {
 	for (const file of jsonData) {
 		// Lookup the manufacturer
 		const manufacturerId = parseInt(file.ManufacturerId, 16);
-		const manufacturerName = configManager.lookupManufacturer(
-			manufacturerId,
-		);
+		const manufacturerName =
+			configManager.lookupManufacturer(manufacturerId);
 
 		// Add the manufacturer to our manufacturers.json if it is missing
 		if (Number.isNaN(manufacturerId)) {
@@ -1235,8 +1239,9 @@ async function parseZWAProduct(
 	const exclusion = product?.Texts?.find(
 		(document: any) => document.Type === 2,
 	)?.value;
-	const reset = product?.Texts?.find((document: any) => document.Type === 5)
-		?.value;
+	const reset = product?.Texts?.find(
+		(document: any) => document.Type === 5,
+	)?.value;
 	let manual = product?.Documents?.find(
 		(document: any) => document.Type === 1,
 	)?.value;

@@ -17,6 +17,7 @@ import yargs from "yargs";
 import {
 	downloadDevicesZWA,
 	normalizeConfig,
+	normalizeUnits,
 	parseZWAFiles,
 	retrieveZWADeviceIds,
 } from "./importConfig";
@@ -61,10 +62,40 @@ const templateName = program.template;
 const templatePath = `templates/${templateName}`;
 
 let jsonData = {};
+let masterTemplateData: { [x: string]: { options: unknown } };
 let manuTemplateData;
 let followUpList = {};
+let templateCounter = 0;
+const possibleLocalBase = [];
+let firstBaseRun = true;
 
 async function templateParams(): Promise<void> {
+	// Initialize the master template
+	try {
+		const f = await fs.readFile(
+			`${processedDir}/templates/master_template.json`,
+			"utf8",
+		);
+		masterTemplateData = JSONC.parse(f);
+	} catch (e) {
+		console.log(
+			`Error processing: ${processedDir}/templates/master_template.json - ${e}`,
+		);
+	}
+
+	if (fs.existsSync(`${dir}/templates/${templateName}`)) {
+		const f = await fs.readFile(`${dir}/templates/${templateName}`, "utf8");
+		try {
+			manuTemplateData = JSONC.parse(f);
+		} catch (e) {
+			console.log(
+				`Error processing: ${dir}/templates/${templateName} - ${e}`,
+			);
+		}
+	} else {
+		manuTemplateData = {};
+	}
+
 	// Initiliaze the manufacturer template
 	if (fs.existsSync(`${dir}/templates/${templateName}`)) {
 		const f = await fs.readFile(`${dir}/templates/${templateName}`, "utf8");
@@ -87,7 +118,7 @@ async function templateParams(): Promise<void> {
 		const j = await fs.readFile(file, "utf8");
 
 		try {
-			jsonData[file] = JSONC.parse(j);
+			jsonData[file] = normalizeConfig(JSONC.parse(j));
 		} catch (e) {
 			console.log(`Error processing: ${file} - ${e}`);
 		}
@@ -111,7 +142,7 @@ async function templateParams(): Promise<void> {
 			}
 
 			let importName: unknown = "";
-			const importNamePath = `${templatePath}#${importName}`;
+			let importNamePath = `${templatePath}#${importName}`;
 			for (const testDevice in jsonData) {
 				// Skip the current file
 				if (device === testDevice) {
@@ -142,6 +173,7 @@ async function templateParams(): Promise<void> {
 							testDevice,
 							testNum,
 						);
+						importNamePath = `${templatePath}#${importName}`;
 					}
 					// Prompt for confirmation for all others
 					else if (
@@ -179,6 +211,7 @@ async function templateParams(): Promise<void> {
 								testDevice,
 								testNum,
 							);
+							importNamePath = `${templatePath}#${importName}`;
 						}
 					}
 					// Template but retain the tested file's defaultValue
@@ -225,6 +258,7 @@ async function templateParams(): Promise<void> {
 								testDevice,
 								testNum,
 							);
+							importNamePath = `${templatePath}#${importName}`;
 							jsonData[testDevice].paramInformation[
 								testNum
 							].defaultValue = saveDefault;
@@ -274,6 +308,7 @@ async function templateParams(): Promise<void> {
 								testDevice,
 								testNum,
 							);
+							importNamePath = `${templatePath}#${importName}`;
 							jsonData[testDevice].paramInformation[
 								testNum
 							].valueSize = saveValue;
@@ -289,25 +324,267 @@ async function templateParams(): Promise<void> {
 					jsonData[device].paramInformation[num] = {};
 					jsonData[device].paramInformation[num].$if = tempIf;
 					// eslint-disable-next-line prettier/prettier
-					jsonData[device].paramInformation[
-						num
-					].$import = importNamePath;
+					jsonData[device].paramInformation[num].$import =
+						importNamePath;
 				} else {
 					jsonData[device].paramInformation[num] = {};
 					// eslint-disable-next-line prettier/prettier
-					jsonData[device].paramInformation[
-						num
-					].$import = importNamePath;
+					jsonData[device].paramInformation[num].$import =
+						importNamePath;
 				}
 			}
 			groupNum++;
 		}
 		console.log(`Device Complete: ${jsonData[device].label}`);
 	}
+}
 
-	// Write the files
-	await writeFiles();
-	console.log("Finished");
+async function addBases(): Promise<void> {
+	const isReady = await promptUser("Ready to add bases? (Y/n)");
+
+	// Confirm the user wants to add bases, or exit
+	if (isReady === "n" || isReady === "N") {
+		await writeFiles();
+		process.exit();
+	}
+
+	// Add pre-existing bases to manufacturer file
+	console.log("Looking for bases to apply to manufacturer template");
+	for (const param in manuTemplateData) {
+		// Skip if already templated
+		if (manuTemplateData[param].$import) {
+			continue;
+		}
+		manuTemplateData[param] = await applyMasterTemplate(
+			manuTemplateData[param],
+		);
+	}
+
+	// Add pre-existing local bases to template definitions
+	for (const param in manuTemplateData) {
+		// Skip if already templated
+		if (manuTemplateData[param].$import) {
+			continue;
+		}
+		manuTemplateData[param] = await applyLocalTemplate(
+			manuTemplateData[param],
+		);
+	}
+
+	// Add pre-existing bases to device files
+
+	for (const device in jsonData) {
+		console.log(`Looking for bases in: ${jsonData[device].label}`);
+		for (const num in jsonData[device].paramInformation) {
+			// Skip if already templated
+			if (jsonData[device].paramInformation[num].$import) {
+				continue;
+			}
+
+			// Add bases in master template
+			try {
+				jsonData[device].paramInformation[num] =
+					await applyMasterTemplate(
+						jsonData[device].paramInformation[num],
+						true,
+					);
+			} catch (e) {
+				console.log(
+					`Error applying master template: ${device}, parameter ${num} - ${e}`,
+				);
+			}
+
+			// If not defined in master template, apply potential bases in the manufacturer template
+			try {
+				jsonData[device].paramInformation[num] =
+					await applyLocalTemplate(
+						jsonData[device].paramInformation[num],
+						true,
+					);
+			} catch (e) {
+				console.log(
+					`Error applying local template: ${device}, parameter ${num} - ${e}`,
+				);
+			}
+		}
+	}
+
+	// Test for new potential local templates to add
+	await testNewBases();
+
+	// Rerun looking for newly added bases, unless we've run before
+	if (firstBaseRun) {
+		firstBaseRun = false;
+		await addBases();
+	}
+}
+
+async function applyMasterTemplate(
+	testParam: Record<string, unknown>,
+	device_file: boolean = false,
+) {
+	for (const mParam in masterTemplateData) {
+		const newParam = {};
+		if (
+			mParam.match(/^base/i) &&
+			masterTemplateData[mParam].minValue === testParam.minValue &&
+			masterTemplateData[mParam].maxValue === testParam.maxValue
+		) {
+			compareParamsOnConsole(testParam, masterTemplateData[mParam]);
+			console.log();
+			console.log(`Should we add the template: ${mParam}`);
+			const addTemplate: boolean = await promptToAdd(
+				"potential_template",
+				templateCounter.toString(),
+			);
+			if (addTemplate) {
+				newParam.$if = testParam.$if || "";
+				if (device_file) {
+					newParam.$import = `../templates/master_template.json#${mParam}`;
+				} else {
+					newParam.$import = `../../templates/master_template.json#${mParam}`;
+				}
+				newParam.label = testParam.label || "";
+				newParam.description = testParam.description || "";
+				newParam.valueSize =
+					testParam.valueSize !== masterTemplateData[mParam].valueSize
+						? testParam.valueSize
+						: "";
+				newParam.unit =
+					(testParam.unit !== testParam.unit) !==
+					masterTemplateData[mParam].unit
+						? testParam.unit
+						: "";
+				newParam.defaultValue =
+					testParam.defaultValue !==
+					masterTemplateData[mParam].defaultValue
+						? testParam.defaultValue
+						: "";
+				newParam.allowManualEntry =
+					testParam.allowManualEntry !==
+					masterTemplateData[mParam].allowManualEntry
+						? testParam.allowManualEntry
+						: "";
+				newParam.options =
+					testParam.options !== masterTemplateData[mParam].options
+						? testParam.options
+						: "";
+				return newParam;
+			}
+		}
+	}
+	return testParam;
+}
+
+async function applyLocalTemplate(
+	testParam: Record<string, unknown>,
+	device_file: boolean = false,
+) {
+	const newParam = {};
+
+	for (const manuParam in manuTemplateData) {
+		if (
+			manuParam.match(/^base/i) &&
+			manuTemplateData[manuParam].minValue === testParam.minValue &&
+			manuTemplateData[manuParam].maxValue === testParam.maxValue
+		) {
+			compareParamsOnConsole(testParam, manuTemplateData[manuParam]);
+			templateCounter = templateCounter + 1;
+			console.log();
+			console.log(`Should we add the template: ${manuParam}`);
+			const addTemplate: boolean = await promptToAdd(
+				"potential_template",
+				templateCounter.toString(),
+			);
+
+			if (addTemplate) {
+				newParam.$if = testParam.$if || "";
+				if (device_file) {
+					newParam.$import = `templates/${templateName}#${manuParam}`;
+				} else {
+					newParam.$import = `#${manuParam}`;
+				}
+				newParam.label = testParam.label || "";
+				newParam.description = testParam.description || "";
+				newParam.valueSize =
+					testParam.valueSize !==
+					manuTemplateData[manuParam].valueSize
+						? testParam.valueSize
+						: "";
+				newParam.defaultValue =
+					testParam.defaultValue !==
+					manuTemplateData[manuParam].defaultValue
+						? testParam.defaultValue
+						: "";
+				newParam.allowManualEntry =
+					testParam.allowManualEntry !==
+					manuTemplateData[manuParam].allowManualEntry
+						? testParam.allowManualEntry
+						: "";
+				newParam.options =
+					testParam.options !== manuTemplateData[mParam].options
+						? testParam.options
+						: "";
+				return newParam;
+			}
+		} else if (testParam.minValue && testParam.maxValue) {
+			// Add to the list to be potentially added as a base in the future
+			possibleLocalBase.push({
+				valueSize: testParam.valueSize,
+				minValue: testParam.minValue,
+				maxValue: testParam.maxValue,
+				defaultValue: testParam.defaultValue,
+				allowManualEntry: testParam.allowManualEntry,
+				options: testParam.options,
+			});
+		}
+	}
+	return testParam;
+}
+
+async function testNewBases() {
+	for (const [index, entry] of possibleLocalBase.entries()) {
+		let importName: unknown = "";
+		for (const [testIndex, testEntry] of possibleLocalBase.entries()) {
+			// Skip the current entry
+			if (index === testIndex) {
+				continue;
+			}
+
+			if (
+				entry.minValue === testEntry.minValue &&
+				entry.maxValue === testEntry.maxValue &&
+				entry.allowManualEntry === testEntry.allowManualEntry &&
+				entry.options === testEntry.options
+			) {
+				compareParamsOnConsole(entry, testEntry);
+				templateCounter = templateCounter + 1;
+				const addTemplate: boolean = await promptToAdd(
+					"potential_template",
+					templateCounter.toString(),
+				);
+
+				if (addTemplate) {
+					if (!importName) {
+						console.clear();
+						console.log(entry);
+						importName = await promptUser(
+							"Adding new template reference - Import statement name? ",
+						);
+
+						// Add to manufacturer template
+						manuTemplateData[importName] = entry;
+					}
+
+					// Delete the one we've added
+					possibleLocalBase[testIndex] = "";
+				}
+			}
+		}
+
+		// Delete the one we've been testing
+		possibleLocalBase[index] = "";
+	}
 }
 
 async function promptUser(query: string) {
@@ -333,6 +610,9 @@ async function promptToAdd(testDevice: string, testNum: string) {
 	if (response == "Q" || response == "q") {
 		await writeFiles();
 		process.exit();
+	} else if (response == "B" || response == "b") {
+		await addBases();
+		process.exit();
 	} else if (response == "f" || response == "f") {
 		followUpList[testDevice] = followUpList[testDevice] || {};
 		followUpList[testDevice][testNum] =
@@ -356,6 +636,8 @@ async function addTemplate(
 	testNum: string,
 ) {
 	if (!importName) {
+		console.clear();
+		console.log(jsonData[device].paramInformation[num]);
 		importName = await promptUser(
 			"Adding new template reference - Import statement name? ",
 		);
@@ -420,7 +702,7 @@ function degreeOfSimilarity(
 	) {
 		return "high-value";
 	} else if (
-		normalizedDistance < 0.2 &&
+		normalizedDistance < 0.15 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.defaultValue === testParam.defaultValue &&
@@ -428,14 +710,14 @@ function degreeOfSimilarity(
 	) {
 		return "medium";
 	} else if (
-		normalizedDistance < 0.2 &&
+		normalizedDistance < 0.15 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.valueSize === testParam.valueSize
 	) {
 		return "medium-default";
 	} else if (
-		normalizedDistance < 0.2 &&
+		normalizedDistance < 0.15 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.defaultValue === testParam.defaultValue
@@ -462,11 +744,82 @@ function compareParamsOnConsole(
 	});
 }
 
+function normalizeParameters() {
+	// Parameter key order (comments preserved)
+	const paramOrder = [
+		"$if",
+		"$import",
+		"label",
+		"description",
+		"valueSize",
+		"unit",
+		"minValue",
+		"maxValue",
+		"defaultValue",
+		"unsigned",
+		"readOnly",
+		"writeOnly",
+		"allowManualEntry",
+		"options",
+	];
+
+	for (const [key, original] of Object.entries<any>(manuTemplateData)) {
+		original.unit = original.unit || "";
+		original.unit = normalizeUnits(original.unit);
+
+		if (original.readOnly) {
+			original.allowManualEntry = undefined;
+			original.writeOnly = undefined;
+		} else if (original.writeOnly) {
+			original.readOnly = undefined;
+		} else {
+			original.readOnly = undefined;
+			original.writeOnly = undefined;
+		}
+
+		if (original.allowManualEntry === true) {
+			original.allowManualEntry = undefined;
+		}
+
+		// Remove undefined keys while preserving comments
+		for (const l of paramOrder) {
+			if (original[l] == undefined || original[l] === "") {
+				delete original[l];
+				continue;
+			}
+
+			const temp = original[l];
+			delete original[l];
+			original[l] = temp;
+		}
+
+		// Delete empty options arrays
+		if (original.options?.length === 0) {
+			delete original.options;
+		}
+	}
+}
+
 async function writeFiles() {
-	// Write the template file
+	// Normalize template files
+	normalizeParameters();
+
+	// Write the master template file
+	const oMasterTemplate = JSONC.stringify(masterTemplateData, null, "\t");
+	await fs.writeFile(
+		`${processedDir}/templates/master_template.json`,
+		oMasterTemplate,
+		"utf8",
+	);
+
+	// Write the manufacturer template file
 	await fs.ensureDir(`${dir}/templates`);
-	const oTemplate = JSONC.stringify(manuTemplateData, null, "\t");
-	await fs.writeFile(`${dir}/templates/${templateName}`, oTemplate, "utf8");
+	const oManuTemplate = JSONC.stringify(manuTemplateData, null, "\t");
+	await fs.writeFile(
+		`${dir}/templates/${templateName}`,
+		oManuTemplate,
+		"utf8",
+	);
 
 	// Write the device files
 	for (const device in jsonData) {
@@ -512,4 +865,9 @@ void (async () => {
 	}
 
 	await templateParams();
+	await addBases();
+
+	// Write the files
+	await writeFiles();
+	console.log("Finished");
 })();
