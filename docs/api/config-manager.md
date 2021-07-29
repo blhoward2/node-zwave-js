@@ -209,6 +209,7 @@ interface DeviceConfigIndexEntry {
 	productType: string;
 	productId: string;
 	firmwareVersion: FirmwareVersionRange;
+	rootDir?: string;
 	filename: string;
 }
 ```
@@ -242,6 +243,7 @@ interface FulltextDeviceConfigIndexEntry {
 	productType: string;
 	productId: string;
 	firmwareVersion: FirmwareVersionRange;
+	rootDir?: string;
 	filename: string;
 }
 ```
@@ -308,7 +310,7 @@ interface ConditionalAssociationConfig {
 	readonly description?: string | undefined;
 	readonly maxNodes: number;
 	readonly isLifeline: boolean;
-	readonly multiChannel: boolean;
+	readonly multiChannel: boolean | "auto";
 }
 ```
 
@@ -371,3 +373,52 @@ getNotificationName(notificationType: number): string;
 Returns the defined label for a given notification type
 
 > [!NOTE] `loadNotifications` must be used first.
+
+## ConfigManager properties
+
+### `namedScales`
+
+```ts
+readonly namedScales: NamedScalesGroupMap;
+```
+
+A map of the defined named sensor scales, which can be used to configure the user-preferred scales.
+
+<!-- #import NamedScalesGroupMap from "@zwave-js/config" -->
+
+```ts
+type NamedScalesGroupMap = ReadonlyMap<string, ScaleGroup>;
+```
+
+<!-- #import ScaleGroup from "@zwave-js/config" with comments -->
+
+```ts
+type ScaleGroup = ReadonlyMap<number, Scale> & {
+	/** The name of the scale group if it is named */
+	readonly name?: string;
+};
+```
+
+### `sensorTypes`
+
+```ts
+readonly sensorTypes: SensorTypeMap;
+```
+
+A map (numeric sensor type -> sensor type definition) of the known sensor types and their scales.
+
+<!-- #import SensorTypeMap from "@zwave-js/config" -->
+
+```ts
+type SensorTypeMap = ReadonlyMap<number, SensorType>;
+```
+
+<!-- #import SensorType from "@zwave-js/config" -->
+
+```ts
+interface SensorType {
+	readonly key: number;
+	readonly label: string;
+	readonly scales: ScaleGroup;
+}
+```

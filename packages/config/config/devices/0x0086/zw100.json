@@ -96,42 +96,38 @@
 			"maxValue": 2120,
 			"defaultValue": 200
 		},
-		"41[0x0f]": [
-			{
-				"$if": "firmwareVersion > 1.6 && firmwareVersion <= 1.9",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Temperature Threshold Unit",
-				"valueSize": 3
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Temperature Threshold Unit",
-				"valueSize": 4
-			}
-		],
-		"41[0xffff00]": [
-			{
-				"$if": "firmwareVersion > 1.6 && firmwareVersion <= 1.9",
-				"label": "Temperature Change Threshold",
-				"unit": "0.1 °C/°F",
-				"valueSize": 3,
-				"minValue": 10,
-				"maxValue": 2120,
-				"defaultValue": 20
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"label": "Temperature Change Threshold",
-				"unit": "0.1 °C/°F",
-				"valueSize": 4,
-				"minValue": 10,
-				"maxValue": 2120,
-				"defaultValue": 20
-			}
-		],
+		"41[0x0f]": {
+			"$if": "firmwareVersion > 1.6 && firmwareVersion <= 1.9",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Temperature Threshold Unit",
+			"valueSize": 3
+		},
+		"41[0xffff00]": {
+			"$if": "firmwareVersion > 1.6 && firmwareVersion <= 1.9",
+			"label": "Temperature Change Threshold",
+			"unit": "0.1 °C/°F",
+			"valueSize": 3,
+			"minValue": 10,
+			"maxValue": 2120,
+			"defaultValue": 20
+		},
+		"41[0x0f00]": {
+			"$if": "firmwareVersion >= 1.10",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Temperature Threshold Unit",
+			"valueSize": 4
+		},
+		"41[0xffff0000]": {
+			"$if": "firmwareVersion >= 1.10",
+			"label": "Temperature Change Threshold",
+			"unit": "0.1 °C/°F",
+			"valueSize": 4,
+			"minValue": 10,
+			"maxValue": 2120,
+			"defaultValue": 20
+		},
 		"42": {
-			"$import": "../templates/master_template.json#base_1-100_nounit",
+			"$import": "~/templates/master_template.json#base_1-100_nounit",
 			"label": "Humidity Change Threshold",
 			"unit": "%",
 			"defaultValue": 10
@@ -145,7 +141,7 @@
 			"defaultValue": 100
 		},
 		"44": {
-			"$import": "../templates/master_template.json#base_1-100_nounit",
+			"$import": "~/templates/master_template.json#base_1-100_nounit",
 			"label": "Battery Level Threshold",
 			"unit": "%",
 			"defaultValue": 10
@@ -184,82 +180,74 @@
 		"48[0x80]": {
 			"$import": "templates/aeotec_template.json#above_ultraviolet_report"
 		},
-		"49[0xff]": [
-			{
-				"$if": "firmwareVersion < 1.10",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Upper Temperature Limit Unit",
-				"valueSize": 3
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Upper Temperature Limit Unit",
-				"valueSize": 4
-			}
-		],
-		"49[0xffff00]": [
-			{
-				"$if": "firmwareVersion < 1.10",
-				"label": "Upper Temperature Limit",
-				"valueSize": 3,
-				"unit": "0.1 °C/°F",
-				"minValue": -400,
-				"maxValue": 2120,
-				"defaultValue": 280
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"label": "Upper Temperature Limit",
-				"valueSize": 4,
-				"unit": "0.1 °C/°F",
-				"minValue": -400,
-				"maxValue": 2120,
-				"defaultValue": 280
-			}
-		],
-		"50[0xff]": [
-			{
-				"$if": "firmwareVersion < 1.10",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Lower Temperature Limit Unit",
-				"valueSize": 3
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-				"label": "Lower Temperature Limit Unit",
-				"valueSize": 3
-			}
-		],
-		"50[0xffff00]": [
-			{
-				"$if": "firmwareVersion < 1.10",
-				"label": "Lower Temperature Limit",
-				"valueSize": 3,
-				"unit": "0.1 °C/°F",
-				"minValue": -400,
-				"maxValue": 2120,
-				"defaultValue": 0
-			},
-			{
-				"$if": "firmwareVersion >= 1.10",
-				"label": "Lower Temperature Limit",
-				"valueSize": 3,
-				"unit": "0.1 °C/°F",
-				"minValue": -400,
-				"maxValue": 2120,
-				"defaultValue": 0
-			}
-		],
+		"49[0xff]": {
+			"$if": "firmwareVersion < 1.10",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Upper Temperature Limit Unit",
+			"valueSize": 3
+		},
+		"49[0xffff00]": {
+			"$if": "firmwareVersion < 1.10",
+			"label": "Upper Temperature Limit",
+			"valueSize": 3,
+			"unit": "0.1 °C/°F",
+			"minValue": -400,
+			"maxValue": 2120,
+			"defaultValue": 280
+		},
+		"49[0x0f00]": {
+			"$if": "firmwareVersion >= 1.10",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Upper Temperature Limit Unit",
+			"valueSize": 4
+		},
+		"49[0xffff0000]": {
+			"$if": "firmwareVersion >= 1.10",
+			"label": "Upper Temperature Limit",
+			"valueSize": 4,
+			"unit": "0.1 °C/°F",
+			"minValue": -400,
+			"maxValue": 2120,
+			"defaultValue": 280
+		},
+		"50[0xff]": {
+			"$if": "firmwareVersion < 1.10",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Lower Temperature Limit Unit",
+			"valueSize": 3
+		},
+		"50[0xffff00]": {
+			"$if": "firmwareVersion < 1.10",
+			"label": "Lower Temperature Limit",
+			"valueSize": 3,
+			"unit": "0.1 °C/°F",
+			"minValue": -400,
+			"maxValue": 2120,
+			"defaultValue": 0
+		},
+		"50[0xf00]": {
+			"$if": "firmwareVersion >= 1.10",
+			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
+			"label": "Lower Temperature Limit Unit",
+			"valueSize": 4
+		},
+		"50[0xffff0000]": {
+			"$if": "firmwareVersion >= 1.10",
+			"label": "Lower Temperature Limit",
+			"valueSize": 4,
+			"unit": "0.1 °C/°F",
+			"minValue": -400,
+			"maxValue": 2120,
+			"defaultValue": 0
+		},
 		"51": {
-			"$import": "../templates/master_template.json#base_0-100_nounit",
+			"$import": "~/templates/master_template.json#base_0-100_nounit",
 			"label": "Upper Humidity Limit",
 			"unit": "%",
 			"defaultValue": 60
 		},
 		"52": {
-			"$import": "../templates/master_template.json#base_0-100_nounit",
+			"$import": "~/templates/master_template.json#base_0-100_nounit",
 			"label": "Lower Humidity Limit",
 			"unit": "%",
 			"defaultValue": 50
@@ -314,48 +302,48 @@
 			"$import": "templates/aeotec_template.json#recover_limit_ultraviolet"
 		},
 		"61[0x01]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Temperature: Below Lower Limit",
 			"readOnly": true
 		},
 		"61[0x10]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Temperature: Above Lower Limit",
 			"readOnly": true
 		},
 		"61[0x02]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Humidity: Below Lower Limit",
 			"readOnly": true
 		},
 		"61[0x20]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Humidity: Above Lower Limit",
 			"readOnly": true
 		},
 		"61[0x04]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Luminance: Below Lower Limit",
 			"readOnly": true
 		},
 		"61[0x40]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Luminance: Above Lower Limit",
 			"readOnly": true
 		},
 		"61[0x08]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Ultraviolet: Below Lower Limit",
 			"readOnly": true
 		},
 		"61[0x80]": {
-			"$import": "../templates/master_template.json#base_true_false",
+			"$import": "~/templates/master_template.json#base_true_false",
 			"label": "Ultraviolet: Above Lower Limit",
 			"readOnly": true
 		},
 		"81": {
 			"$if": "firmwareVersion >= 1.8",
-			"$import": "../templates/master_template.json#base_enable_disable",
+			"$import": "~/templates/master_template.json#base_enable_disable",
 			"label": "LED Blinking"
 		},
 		"101[0x01]": {
@@ -405,7 +393,8 @@
 		},
 		"64": {
 			"$import": "templates/aeotec_template.json#celsius_fahrenheit",
-			"label": "Automatic Temperature Reporting Unit"
+			"label": "Automatic Temperature Reporting Unit",
+			"valueSize": 1
 		},
 		"100": {
 			"$import": "templates/aeotec_template.json#reset_parameters",

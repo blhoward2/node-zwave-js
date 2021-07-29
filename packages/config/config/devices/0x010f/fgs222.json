@@ -222,7 +222,7 @@
 			]
 		},
 		"16": {
-			"$import": "../templates/master_template.json#state_after_power_failure_off_prev"
+			"$import": "~/templates/master_template.json#state_after_power_failure_off_prev"
 		},
 		"30": {
 			"label": "Relay 1: Response to General Alarm",
@@ -449,5 +449,9 @@
 				}
 			]
 		}
+	},
+	"compat": {
+		// The device sends reports for endpoint 1 un-encapsulated
+		"mapRootReportsToEndpoint": 1
 	}
 }

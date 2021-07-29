@@ -55,23 +55,29 @@ When building a user interface for a Z-Wave application, you might need to know 
 ### `setValue`
 
 ```ts
-async setValue(valueId: ValueID, value: unknown): Promise<boolean>
+async setValue(valueId: ValueID, value: unknown, options?: SetValueAPIOptions): Promise<boolean>
 ```
 
-Updates a value on the node. This method takes two arguments:
+Updates a value on the node. This method takes the following arguments:
 
 -   `valueId: ValueID` - specifies which value to update
 -   `value: unknown` - The new value to set
+-   `options?: SetValueAPIOptions` - Optional options for the resulting commands
 
 This method automatically figures out which commands to send to the node, so you don't have to use the specific commands yourself. The returned promise resolves to `true` after the value was successfully updated on the node. It resolves to `false` if any of the following conditions are met:
 
-<!-- TODO: Document API and setValue API -->
-
 -   The `setValue` API is not implemented in the required Command Class
+-   The required Command Class is not supported by the node/endpoint
 -   The required Command Class is not implemented in this library yet
 -   The API for the required Command Class is not implemented in this library yet
 
-<!-- TODO: Check what happens if the CC is not supported by the node -->
+The `options` bag contains options that influence the resulting commands, for example a transition duration. Each implementation will choose the options that are relevant for it, so you can use the same options everywhere.
+
+<!-- #import SetValueAPIOptions from "zwave-js" -->
+
+```ts
+type SetValueAPIOptions = Partial<ValueChangeOptions>;
+```
 
 ### `pollValue`
 
@@ -176,13 +182,41 @@ Rediscovers all capabilities of a single CC on this node and all endpoints. Alth
 
 > [!NOTE] This method should only be used when necessary, for example when CC capabilities were not discovered correctly. It can be considered to be a more targeted version of `refreshInfo`.
 
+### `getFirmwareUpdateCapabilities`
+
+```ts
+getFirmwareUpdateCapabilities(): Promise<FirmwareUpdateCapabilities>
+```
+
+Retrieves the firmware update capabilities of a node to decide which options (e.g. firmware targets) to offer a user prior to the update.
+
+<!-- #import FirmwareUpdateCapabilities from "zwave-js" -->
+
+```ts
+type FirmwareUpdateCapabilities =
+	| {
+			/** Indicates whether the node's firmware can be upgraded */
+			readonly firmwareUpgradable: false;
+	  }
+	| {
+			/** Indicates whether the node's firmware can be upgraded */
+			readonly firmwareUpgradable: true;
+			/** An array of firmware targets that can be upgraded */
+			readonly firmwareTargets: readonly number[];
+			/** Indicates whether the node continues to function normally during an upgrade */
+			readonly continuesToFunction: Maybe<boolean>;
+			/** Indicates whether the node supports delayed activation of the new firmware */
+			readonly supportsActivation: Maybe<boolean>;
+	  };
+```
+
 ### `beginFirmwareUpdate`
 
 ```ts
 beginFirmwareUpdate(data: Buffer, target?: number): Promise<void>
 ```
 
-**WARNING: Use at your own risk! We don't take any responsibility if your devices don't work after an update.**
+> [!WARNING] Use at your own risk! We don't take any responsibility if your devices don't work after an update.
 
 Starts an OTA firmware update process for this node. This method takes two arguments:
 
@@ -200,10 +234,8 @@ extractFirmware(rawData: Buffer, format: FirmwareFileFormat): Firmware
 -   `"aeotec"` - A Windows executable (`.exe` or `.ex_`) that contains Aeotec's upload tool
 -   `"otz"` - A compressed firmware file in Intel HEX format
 -   `"ota"` or `"hex"` - An uncompressed firmware file in Intel HEX format
+-   `"hec"` - An encrypted Intel HEX firmware file
 -   `"gecko"` - A binary gecko bootloader firmware file with `.gbl` extension
-
-> [!NOTE]  
-> `.hec` firmware update files are encrypted with proprietary encryption and not supported by `zwave-js`
 
 You can use the helper method `guessFirmwareFileFormat` to guess which firmware format a file has based on the file extension and contents.
 
@@ -349,9 +381,6 @@ enum InterviewStage {
 	 * config file contents.
 	 */
 	OverwriteConfig,
-
-	/** The node has been queried for its current neighbor list */
-	Neighbors,
 
 	/** The interview process has finished */
 	Complete,
@@ -838,5 +867,32 @@ interface ZWaveNotificationCallbackArgs_NotificationCC {
 	eventLabel: string;
 	/** Additional information related to the event */
 	parameters?: NotificationCCReport["eventParameters"];
+}
+```
+
+### `"statistics updated"`
+
+This event is emitted regularly during and after communication with the node and gives some insight that would otherwise only be visible by looking at logs. The callback has the signature
+
+```ts
+(node: ZWaveNode, statistics: NodeStatistics) => void
+```
+
+where the statistics have the following shape:
+
+<!-- #import NodeStatistics from "zwave-js" -->
+
+```ts
+interface NodeStatistics {
+	/** No. of commands successfully sent to the node */
+	commandsTX: number;
+	/** No. of commands received from the node, including responses to the sent commands */
+	commandsRX: number;
+	/** No. of commands from the node that were dropped by the host */
+	commandsDroppedRX: number;
+	/** No. of outgoing commands that were dropped because they could not be sent */
+	commandsDroppedTX: number;
+	/** No. of Get-type commands where the node's response did not come in time */
+	timeoutResponse: number;
 }
 ```

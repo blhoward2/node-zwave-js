@@ -1,7 +1,11 @@
 import {
+	applicationCCs,
 	assertZWaveError,
 	CommandClasses,
 	CommandClassInfo,
+	getCCName,
+	nonApplicationCCs,
+	topologicalSort,
 	ValueDB,
 	ValueID,
 	ValueMetadata,
@@ -12,6 +16,7 @@ import {
 	BinarySwitchCCReport,
 	BinarySwitchCommand,
 } from "../commandclass/BinarySwitchCC";
+import { getCCConstructor } from "../commandclass/CommandClass";
 import {
 	EntryControlCCNotification,
 	EntryControlCommand,
@@ -53,24 +58,12 @@ class TestNode extends ZWaveNode {
 	public async interviewCCs(): Promise<boolean> {
 		return super.interviewCCs();
 	}
-	// public async queryManufacturerSpecific(): Promise<void> {
-	// 	return super.queryManufacturerSpecific();
-	// }
-	// public async queryCCVersions(): Promise<void> {
-	// 	return super.queryCCVersions();
-	// }
 	// public async queryEndpoints(): Promise<void> {
 	// 	return super.queryEndpoints();
 	// }
 	// public async configureWakeup(): Promise<void> {
 	// 	return super.configureWakeup();
 	// }
-	// public async requestStaticValues(): Promise<void> {
-	// 	return super.requestStaticValues();
-	// }
-	public async queryNeighbors(): Promise<void> {
-		return super["queryNeighbors"]();
-	}
 	public get implementedCommandClasses(): Map<
 		CommandClasses,
 		CommandClassInfo
@@ -88,9 +81,12 @@ describe("lib/node/Node", () => {
 	});
 
 	describe("constructor", () => {
-		const fakeDriver = createEmptyMockDriver() as unknown as Driver;
+		let fakeDriver: Driver;
 
 		beforeAll(async () => {
+			fakeDriver = createEmptyMockDriver() as unknown as Driver;
+			// Loading configuration may take a while on CI
+			if (process.env.CI) jest.setTimeout(30000);
 			await fakeDriver.configManager.loadDeviceClasses();
 		});
 
@@ -199,6 +195,9 @@ describe("lib/node/Node", () => {
 			fakeDriver = createEmptyMockDriver();
 			node = new ZWaveNode(2, fakeDriver as any);
 			(fakeDriver.controller.nodes as any).set(node.id, node);
+
+			// Loading configuration may take a while on CI
+			if (process.env.CI) jest.setTimeout(30000);
 			await fakeDriver.configManager.loadDeviceClasses();
 		});
 
@@ -400,6 +399,75 @@ describe("lib/node/Node", () => {
 
 			it.todo("test that the CC interview methods are called");
 
+			it.only("the CC interviews happen in the correct order", () => {
+				require("../commandclass/index");
+				expect(getCCConstructor(49)).not.toBeUndefined();
+
+				const node = new ZWaveNode(2, fakeDriver as any);
+				const CCs = [
+					CommandClasses["Z-Wave Plus Info"],
+					CommandClasses["Device Reset Locally"],
+					CommandClasses["Firmware Update Meta Data"],
+					CommandClasses["CRC-16 Encapsulation"],
+					CommandClasses["Multi Channel"],
+					CommandClasses["Multilevel Switch"],
+					CommandClasses.Configuration,
+					CommandClasses["Multilevel Sensor"],
+					CommandClasses.Meter,
+					CommandClasses.Protection,
+					CommandClasses.Association,
+					CommandClasses["Multi Channel Association"],
+					CommandClasses["Association Group Information"],
+					CommandClasses.Notification,
+					CommandClasses["Manufacturer Specific"],
+					CommandClasses.Version,
+				];
+				for (const cc of CCs) {
+					node.addCC(cc, { isSupported: true, version: 1 });
+				}
+
+				const rootInterviewGraphPart1 = node.buildCCInterviewGraph([
+					CommandClasses.Security,
+					CommandClasses["Security 2"],
+					CommandClasses["Manufacturer Specific"],
+					CommandClasses.Version,
+					...applicationCCs,
+				]);
+				const rootInterviewGraphPart2 = node.buildCCInterviewGraph([
+					...nonApplicationCCs,
+				]);
+
+				const rootInterviewOrderPart1 = topologicalSort(
+					rootInterviewGraphPart1,
+				);
+				const rootInterviewOrderPart2 = topologicalSort(
+					rootInterviewGraphPart2,
+				);
+
+				expect(
+					rootInterviewOrderPart1.map((cc) => getCCName(cc)),
+				).toEqual([
+					"Z-Wave Plus Info",
+					"Device Reset Locally",
+					"Firmware Update Meta Data",
+					"CRC-16 Encapsulation",
+					"Multi Channel",
+					"Association",
+					"Multi Channel Association",
+					"Association Group Information",
+				]);
+				expect(
+					rootInterviewOrderPart2.map((cc) => getCCName(cc)),
+				).toEqual([
+					"Multilevel Switch",
+					"Configuration",
+					"Multilevel Sensor",
+					"Meter",
+					"Protection",
+					"Notification",
+				]);
+			});
+
 			// it("should not send anything if the node is the controller", async () => {
 			// 	// Temporarily make this node the controller node
 			// 	fakeDriver.controller.ownNodeId = node.id;
@@ -506,7 +574,6 @@ describe("lib/node/Node", () => {
 					queryProtocolInfo: InterviewStage.ProtocolInfo,
 					queryNodeInfo: InterviewStage.NodeInfo,
 					interviewCCs: InterviewStage.CommandClasses,
-					queryNeighbors: InterviewStage.Neighbors,
 				};
 				const returnValues: Partial<Record<keyof TestNode, any>> = {
 					ping: true,
@@ -516,7 +583,6 @@ describe("lib/node/Node", () => {
 					queryProtocolInfo: node["queryProtocolInfo"].bind(node),
 					queryNodeInfo: node["queryNodeInfo"].bind(node),
 					interviewCCs: node["interviewCCs"].bind(node),
-					queryNeighbors: node["queryNeighbors"].bind(node),
 				};
 				for (const method of Object.keys(
 					originalMethods,
@@ -838,7 +904,11 @@ describe("lib/node/Node", () => {
 		let node: ZWaveNode;
 		beforeEach(async () => {
 			const fakeDriver = createEmptyMockDriver();
+
+			// Loading configuration may take a while on CI
+			if (process.env.CI) jest.setTimeout(30000);
 			await fakeDriver.configManager.loadDeviceClasses();
+
 			node = new ZWaveNode(
 				2,
 				fakeDriver as any,
@@ -947,6 +1017,8 @@ describe("lib/node/Node", () => {
 		const fakeDriver = createEmptyMockDriver() as unknown as Driver;
 
 		beforeAll(async () => {
+			// Loading configuration may take a while on CI
+			if (process.env.CI) jest.setTimeout(30000);
 			await fakeDriver.configManager.loadDeviceClasses();
 		});
 
@@ -967,7 +1039,6 @@ describe("lib/node/Node", () => {
 			supportsBeaming: true,
 			protocolVersion: 3,
 			nodeType: "Controller",
-			neighbors: [2, 3, 4],
 			commandClasses: {
 				"0x25": {
 					name: "Binary Switch",
@@ -1086,11 +1157,11 @@ describe("lib/node/Node", () => {
 		it("deserialize() should also accept numbers for the interview stage", () => {
 			const input = {
 				...serializedTestNode,
-				interviewStage: InterviewStage.Neighbors,
+				interviewStage: InterviewStage.Complete,
 			};
 			const node = new ZWaveNode(1, fakeDriver);
 			node.deserialize(input);
-			expect(node.interviewStage).toBe(InterviewStage.Neighbors);
+			expect(node.interviewStage).toBe(InterviewStage.Complete);
 			node.destroy();
 		});
 
@@ -1508,7 +1579,7 @@ describe("lib/node/Node", () => {
 
 		beforeEach(() => fakeDriver.sendMessage.mockClear());
 
-		it("should map commands from the root endpoint to endpoint 1 if MultiChannelAssociationCC is V1/V2", async () => {
+		it("should map commands from the root endpoint to endpoint 1 if configured", async () => {
 			const node = makeNode([
 				[
 					CommandClasses["Multi Channel Association"],
@@ -1535,6 +1606,12 @@ describe("lib/node/Node", () => {
 			node.getEndpoint(1)?.addCC(CommandClasses["Binary Switch"], {
 				isSupported: true,
 			});
+
+			node["_deviceConfig"] = {
+				compat: {
+					mapRootReportsToEndpoint: 1,
+				},
+			} as any;
 
 			// Handle a command for the root endpoint
 			const command = new BinarySwitchCCReport(

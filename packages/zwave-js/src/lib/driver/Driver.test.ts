@@ -2,6 +2,7 @@ import {
 	assertZWaveError,
 	CommandClasses,
 	SecurityManager,
+	ValueID,
 	ZWaveError,
 	ZWaveErrorCodes,
 } from "@zwave-js/core";
@@ -50,7 +51,7 @@ describe("lib/driver/Driver => ", () => {
 	describe("starting it => ", () => {
 		it("should open a new serialport", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -65,7 +66,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("should only work once", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -81,7 +82,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("the start promise should only be fulfilled after the port was opened", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -98,7 +99,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("the start promise should be rejected if the port opening fails", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -117,7 +118,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("after a failed start, starting again should not be possible", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -141,7 +142,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it(`should throw if no "error" handler is attached`, async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// start the driver
@@ -154,7 +155,7 @@ describe("lib/driver/Driver => ", () => {
 	describe.skip("sending messages => ", () => {
 		it("should not be possible if the driver wasn't started", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -170,7 +171,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("should not be possible if the driver hasn't completed starting", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -189,7 +190,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("should not be possible if the driver failed to start", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
-				skipInterview: true,
+				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
 			// swallow error events during testing
@@ -405,6 +406,7 @@ describe("lib/driver/Driver => ", () => {
 					forEach: () => {},
 				},
 				isFunctionSupported,
+				incrementStatistics: () => {},
 			} as any;
 		});
 
@@ -479,6 +481,7 @@ describe("lib/driver/Driver => ", () => {
 					forEach: () => {},
 				},
 				isFunctionSupported,
+				incrementStatistics: () => {},
 			} as any;
 		});
 
@@ -749,6 +752,42 @@ describe("lib/driver/Driver => ", () => {
 				command: cc,
 			});
 			expect(() => driver["assemblePartialCCs"](msg)).toThrow("invalid");
+		});
+	});
+
+	describe("hasPendingMessages()", () => {
+		let driver: Driver;
+		let node2: ZWaveNode;
+
+		beforeEach(async () => {
+			({ driver } = await createAndStartDriver());
+			node2 = new ZWaveNode(2, driver);
+			driver["_controller"] = {
+				ownNodeId: 1,
+				nodes: {
+					has: () => true,
+					get: () => node2,
+					forEach: () => {},
+				},
+				isFunctionSupported,
+			} as any;
+		});
+
+		afterEach(async () => {
+			await driver.destroy();
+			driver.removeAllListeners();
+		});
+
+		it("should return true when there is a poll scheduled for a node", () => {
+			expect(driver["hasPendingMessages"](node2)).toBeFalse();
+			const valueId: ValueID = {
+				commandClass: CommandClasses.Basic,
+				property: "currentValue",
+			};
+			node2.schedulePoll(valueId, 1000);
+			expect(driver["hasPendingMessages"](node2)).toBeTrue();
+			node2.cancelScheduledPoll(valueId);
+			expect(driver["hasPendingMessages"](node2)).toBeFalse();
 		});
 	});
 });

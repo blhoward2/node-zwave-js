@@ -4,6 +4,7 @@
     -   [Quick Start](getting-started/quickstart.md)
     -   [Migrating to v6](getting-started/migrating-to-v6.md)
     -   [Migrating to v7](getting-started/migrating-to-v7.md)
+    -   [Migrating to v8](getting-started/migrating-to-v8.md)
     -   [Sponsoring the development](getting-started/sponsoring.md)
 
 -   API
@@ -35,6 +36,7 @@
     -   [File format](config-files/file-format.md)
     -   [Contributing device files](config-files/contributing-files.md)
     -   [Importing files from other sources](config-files/importing-from-others.md)
+    -   [Using telemetry data](config-files/using-telemetry-data.md)
     -   [Style guide](config-files/style-guide.md)
     -   [Conditional parameters and settings](config-files/conditional-settings.md)
     -   [Using templates](config-files/using-templates.md)

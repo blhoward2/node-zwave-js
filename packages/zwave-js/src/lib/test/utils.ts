@@ -1,4 +1,4 @@
-/* wotan-disable no-restricted-property-access */
+/* eslint-disable @typescript-eslint/no-empty-function */
 
 import { MockSerialPort } from "@zwave-js/serial";
 import type { DeepPartial } from "@zwave-js/shared";
@@ -31,7 +31,7 @@ export async function createAndStartDriver(
 
 	const driver = new Driver(PORT_ADDRESS, {
 		...options,
-		skipInterview: true,
+		interview: { skipInterview: true },
 	});
 	driver.on("error", () => {
 		/* swallow error events during testing */
@@ -56,6 +56,7 @@ export async function createAndStartDriver(
 		ownNodeId: 1,
 		isFunctionSupported: () => true,
 		nodes: new Map(),
+		incrementStatistics: () => {},
 	} as any;
 
 	return {

@@ -25,7 +25,6 @@
 		"min": "0.0",
 		"max": "255.255"
 	},
-	"supportsZWavePlus": true,
 	"paramInformation": {
 		"1": {
 			"label": "Send meter reports",
@@ -100,7 +99,7 @@
 			"defaultValue": 5
 		},
 		"7": {
-			"$import": "../templates/master_template.json#state_after_power_failure_off_prev"
+			"$import": "~/templates/master_template.json#state_after_power_failure_off_prev"
 		},
 		"8": {
 			"label": "Timed auto-off",

@@ -100,7 +100,10 @@ export class CommandClass {
 
 		if (gotDeserializationOptions(options)) {
 			// For deserialized commands, try to invoke the correct subclass constructor
-			const ccCommand = CommandClass.getCCCommand(options.data);
+			const CCConstructor =
+				getCCConstructor(CommandClass.getCommandClass(options.data)) ??
+				CommandClass;
+			const ccCommand = CCConstructor.getCCCommand(options.data);
 			if (ccCommand != undefined) {
 				const CommandConstructor = getCCCommandConstructor(
 					this.ccId,
@@ -255,7 +258,8 @@ export class CommandClass {
 	/**
 	 * Deserializes a CC from a buffer that contains a serialized CC
 	 */
-	private deserialize(data: Buffer) {
+	// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+	protected deserialize(data: Buffer) {
 		const ccId = CommandClass.getCommandClass(data);
 		const ccIdLength = this.isExtended() ? 2 : 1;
 		if (data.length > ccIdLength) {
@@ -360,7 +364,16 @@ export class CommandClass {
 				if (!ccName) {
 					ccName = `${getCCName(ccId)} CC`;
 				}
-				return new InvalidCC(driver, { nodeId, ccId, ccName });
+				// Preserve why the command was invalid
+				let reason: string | undefined;
+				if (typeof e.context === "string") reason = e.context;
+
+				return new InvalidCC(driver, {
+					nodeId,
+					ccId,
+					ccName,
+					reason,
+				});
 			}
 			throw e;
 		}
@@ -821,8 +834,12 @@ export class CommandClass {
 		return undefined; // Only select CCs support to be split
 	}
 
-	/** When a CC supports to be split into multiple partial CCs, this indicates that the last report hasn't been received yet */
-	public expectMoreMessages(): boolean {
+	/**
+	 * When a CC supports to be split into multiple partial CCs, this indicates that the last report hasn't been received yet.
+	 * @param session The previously received set of messages received in this partial CC session
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public expectMoreMessages(session: CommandClass[]): boolean {
 		return false; // By default, all CCs are monolithic
 	}
 
@@ -1063,7 +1080,6 @@ type APIConstructor = new (
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 type TypedClassDecorator<TTarget extends Object> = <
-	// wotan-disable-next-line no-misused-generics
 	T extends TTarget,
 	TConstructor extends new (...args: any[]) => T,
 >(
@@ -1261,7 +1277,6 @@ function getCCCommand<T extends CommandClass>(cc: T): number | undefined {
 /**
  * Looks up the command class constructor for a given command class type and function type
  */
-// wotan-disable-next-line no-misused-generics
 function getCCCommandConstructor<TBase extends CommandClass>(
 	ccId: CommandClasses,
 	ccCommand: number,

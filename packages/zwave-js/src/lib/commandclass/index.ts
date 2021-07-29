@@ -11,6 +11,7 @@ export {
 } from "./AlarmSensorCC";
 export type { AlarmSensorValueMetadata } from "./AlarmSensorCC";
 export { CCAPI } from "./API";
+export type { SetValueAPIOptions } from "./API";
 export {
 	AssociationCC,
 	AssociationCCGet,
@@ -181,6 +182,7 @@ export {
 	FirmwareUpdateRequestStatus,
 	FirmwareUpdateStatus,
 } from "./FirmwareUpdateMetaDataCC";
+export type { FirmwareUpdateCapabilities } from "./FirmwareUpdateMetaDataCC";
 export { HailCC } from "./HailCC";
 export {
 	IndicatorCC,
@@ -436,6 +438,14 @@ export {
 	TimeParametersCCReport,
 	TimeParametersCCSet,
 } from "./TimeParametersCC";
+export {
+	TransportServiceCC,
+	TransportServiceCCFirstSegment,
+	TransportServiceCCSegmentComplete,
+	TransportServiceCCSegmentRequest,
+	TransportServiceCCSegmentWait,
+	TransportServiceCCSubsequentSegment,
+} from "./TransportServiceCC";
 export {
 	KeypadMode,
 	UserCodeCC,

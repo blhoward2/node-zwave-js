@@ -1,23 +1,37 @@
-/* wotan-disable async-function-assignability */
+// To test with Sentry reporting:
+// import { Driver } from "../packages/zwave-js";
 
-require("reflect-metadata");
+// To test without Sentry reporting
+import path from "path";
+import "reflect-metadata";
+import { Driver } from "../packages/zwave-js/src/lib/driver/Driver";
 
 process.on("unhandledRejection", (_r) => {
 	// debugger;
 });
-
-// Uncomment this to test Sentry reporting
-// import "../packages/zwave-js";
-import { Driver } from "../packages/zwave-js/src/lib/driver/Driver";
 
 const driver = new Driver("COM5", {
 	// prettier-ignore
 	networkKey: Buffer.from([
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 	]),
+	storage: {
+		cacheDir: path.join(__dirname, "cache"),
+	},
 })
 	.on("error", console.error)
 	.once("driver ready", async () => {
+		// driver.controller.on("statistics updated", (s) => {
+		// 	console.debug(s);
+		// });
+		// for (const node of driver.controller.nodes.values()) {
+		// 	node.on("statistics updated", (_node, s) => {
+		// 		console.debug({
+		// 			node: _node.id,
+		// 			...s,
+		// 		});
+		// 	});
+		// }
 		// const cc = new CommandClass(driver, {
 		// 	nodeId: 24,
 		// 	ccId: 0x5d,

@@ -1,4 +1,3 @@
-import type { AssociationConfig } from "@zwave-js/config";
 import {
 	actuatorCCs,
 	CommandClasses,
@@ -15,10 +14,12 @@ import {
 	flatMap,
 	getEnumMemberName,
 	JSONObject,
+	Mixin,
 	num2hex,
 	ObjectKeyMap,
 	pick,
 	ReadonlyObjectKeyMap,
+	TypedEventEmitter,
 } from "@zwave-js/shared";
 import { distinct } from "alcalzone-shared/arrays";
 import {
@@ -27,7 +28,6 @@ import {
 } from "alcalzone-shared/deferred-promise";
 import { composeObject } from "alcalzone-shared/objects";
 import { isObject } from "alcalzone-shared/typeguards";
-import { EventEmitter } from "events";
 import type { AssociationCC } from "../commandclass/AssociationCC";
 import type {
 	AssociationGroup,
@@ -46,7 +46,12 @@ import type {
 	EndpointAddress,
 	MultiChannelAssociationCC,
 } from "../commandclass/MultiChannelAssociationCC";
+import {
+	getFirmwareVersionsMetadata,
+	getFirmwareVersionsValueId,
+} from "../commandclass/VersionCC";
 import type { Driver, RequestHandler } from "../driver/Driver";
+import type { StatisticsEventCallbacks } from "../driver/Statistics";
 import { FunctionType } from "../message/Constants";
 import type { Message } from "../message/Message";
 import type { SuccessIndicator } from "../message/SuccessIndicator";
@@ -111,6 +116,10 @@ import {
 } from "./AddNodeToNetworkRequest";
 import { AssignReturnRouteRequest } from "./AssignReturnRouteMessages";
 import { AssignSUCReturnRouteRequest } from "./AssignSUCReturnRouteMessages";
+import {
+	ControllerStatistics,
+	ControllerStatisticsHost,
+} from "./ControllerStatistics";
 import { DeleteReturnRouteRequest } from "./DeleteReturnRouteMessages";
 import { DeleteSUCReturnRouteRequest } from "./DeleteSUCReturnRouteMessages";
 import {
@@ -185,7 +194,8 @@ export type ReadonlyThrowingMap<K, V> = ReadonlyMap<K, V> & {
 };
 
 // Strongly type the event emitter events
-interface ControllerEventCallbacks {
+interface ControllerEventCallbacks
+	extends StatisticsEventCallbacks<ControllerStatistics> {
 	"inclusion failed": () => void;
 	"exclusion failed": () => void;
 	"inclusion started": (secure: boolean) => void;
@@ -202,32 +212,11 @@ interface ControllerEventCallbacks {
 
 export type ControllerEvents = Extract<keyof ControllerEventCallbacks, string>;
 
-export interface ZWaveController {
-	on<TEvent extends ControllerEvents>(
-		event: TEvent,
-		callback: ControllerEventCallbacks[TEvent],
-	): this;
-	once<TEvent extends ControllerEvents>(
-		event: TEvent,
-		callback: ControllerEventCallbacks[TEvent],
-	): this;
-	removeListener<TEvent extends ControllerEvents>(
-		event: TEvent,
-		callback: ControllerEventCallbacks[TEvent],
-	): this;
-	off<TEvent extends ControllerEvents>(
-		event: TEvent,
-		callback: ControllerEventCallbacks[TEvent],
-	): this;
-	removeAllListeners(event?: ControllerEvents): this;
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface ZWaveController extends ControllerStatisticsHost {}
 
-	emit<TEvent extends ControllerEvents>(
-		event: TEvent,
-		...args: Parameters<ControllerEventCallbacks[TEvent]>
-	): boolean;
-}
-
-export class ZWaveController extends EventEmitter {
+@Mixin([ControllerStatisticsHost])
+export class ZWaveController extends TypedEventEmitter<ControllerEventCallbacks> {
 	/** @internal */
 	public constructor(private readonly driver: Driver) {
 		super();
@@ -680,6 +669,15 @@ export class ZWaveController extends EventEmitter {
 		controllerValueDB.setValue(getProductTypeValueId(), this._productType);
 		controllerValueDB.setValue(getProductIdValueId(), this._productId);
 
+		// Set firmware version information for the controller node
+		controllerValueDB.setMetadata(
+			getFirmwareVersionsValueId(),
+			getFirmwareVersionsMetadata(),
+		);
+		controllerValueDB.setValue(getFirmwareVersionsValueId(), [
+			this._serialApiVersion,
+		]);
+
 		if (
 			this.type !== ZWaveLibraryTypes["Bridge Controller"] &&
 			this.isFunctionSupported(FunctionType.SetSerialApiTimeouts)
@@ -768,7 +766,7 @@ export class ZWaveController extends EventEmitter {
 	 */
 	public hardReset(): Promise<void> {
 		this.driver.controllerLog.print("performing hard reset...");
-		// wotan-disable-next-line async-function-assignability
+
 		return new Promise(async (resolve, reject) => {
 			// handle the incoming message
 			const handler: RequestHandler = (_msg) => {
@@ -1662,12 +1660,13 @@ export class ZWaveController extends EventEmitter {
 	 * Returns `true` if the process succeeded, `false` otherwise.
 	 */
 	public async healNode(nodeId: number): Promise<boolean> {
+		// Don't try to heal dead nodes
+		const node = this.nodes.getOrThrow(nodeId);
+
 		// Don't start the process twice
 		if (this._healNetworkActive) return false;
 		this._healNetworkActive = true;
 
-		// Don't try to heal dead nodes
-		const node = this.nodes.getOrThrow(nodeId);
 		if (
 			// The node is known to be dead
 			node.status === NodeStatus.Dead ||
@@ -2047,22 +2046,11 @@ ${associatedNodes.join(", ")}`,
 					CommandClasses["Association Group Information"],
 				)!;
 			for (let group = 1; group <= groupCount; group++) {
-				let assocConfig: AssociationConfig | undefined;
-				if (node.deviceConfig) {
-					if (endpointIndex === 0) {
-						// The root endpoint's associations may be configured separately or as part of "endpoints"
-						assocConfig =
-							node.deviceConfig.associations?.get(group) ??
-							node.deviceConfig.endpoints
-								?.get(0)
-								?.associations?.get(group);
-					} else {
-						// The other endpoints can only have a configuration as part of "endpoints"
-						assocConfig = node.deviceConfig.endpoints
-							?.get(endpointIndex)
-							?.associations?.get(group);
-					}
-				}
+				const assocConfig =
+					node.deviceConfig?.getAssociationConfigForEndpoint(
+						endpointIndex,
+						group,
+					);
 				const multiChannel = !!mcInstance && group <= mcGroupCount;
 				ret.set(group, {
 					maxNodes:
@@ -2087,7 +2075,11 @@ ${associatedNodes.join(", ")}`,
 		} else {
 			// we need to consult the device config
 			for (let group = 1; group <= groupCount; group++) {
-				const assocConfig = node.deviceConfig?.associations?.get(group);
+				const assocConfig =
+					node.deviceConfig?.getAssociationConfigForEndpoint(
+						endpointIndex,
+						group,
+					);
 				const multiChannel = !!mcInstance && group <= mcGroupCount;
 				ret.set(group, {
 					maxNodes:
@@ -2518,7 +2510,6 @@ ${associatedNodes.join(", ")}`,
 			endpoint.index > 0 ? `, endpoint ${endpoint.index}` : ""
 		}`;
 
-		let groupExistsAsMultiChannel = false;
 		// Split associations into conventional and endpoint associations
 		const nodeAssociations = distinct(
 			destinations
@@ -2531,23 +2522,79 @@ ${associatedNodes.join(", ")}`,
 
 		// Removing associations is not either/or - we could have a device with duplicated associations between
 		// Association CC and Multi Channel Association CC
+		// Figure out what we need to use to remove the associations
+
+		let groupExistsAsMultiChannel = false;
+		let groupExistsAsNodeAssociation = false;
+
+		let mcInstance: MultiChannelAssociationCC | undefined;
+		let assocInstance: AssociationCC | undefined;
+
+		// To remove a multi channel association, we need to make sure that the group exists
+		// and the node supports multi channel associations
 		if (endpoint.supportsCC(CommandClasses["Multi Channel Association"])) {
-			// Prefer multi channel associations
-			const cc =
+			mcInstance =
 				endpoint.createCCInstanceUnsafe<MultiChannelAssociationCC>(
 					CommandClasses["Multi Channel Association"],
 				)!;
-			if (group > cc.getGroupCountCached()) {
-				throw new ZWaveError(
-					`Group ${group} does not exist on node ${nodeAndEndpointString}`,
-					ZWaveErrorCodes.AssociationCC_InvalidGroup,
-				);
-			} else {
-				// Remember that the group exists as a multi channel group, otherwise the "normal" association code
-				// will throw if we try to remove the association from a non-existing "normal" group
+			if (group <= mcInstance.getGroupCountCached()) {
 				groupExistsAsMultiChannel = true;
 			}
+		} else if (endpointAssociations.length > 0) {
+			throw new ZWaveError(
+				`Node ${nodeAndEndpointString} does not support multi channel associations!`,
+				ZWaveErrorCodes.CC_NotSupported,
+			);
+		}
 
+		// To remove a normal association, we need to make sure that the group exists either as a normal association
+		// or as a multi channel association
+		if (endpoint.supportsCC(CommandClasses.Association)) {
+			assocInstance = endpoint.createCCInstanceUnsafe<AssociationCC>(
+				CommandClasses.Association,
+			)!;
+			if (group <= assocInstance.getGroupCountCached()) {
+				groupExistsAsNodeAssociation = true;
+			}
+		}
+
+		if (!mcInstance && !assocInstance) {
+			throw new ZWaveError(
+				`Node ${nodeAndEndpointString} does not support associations!`,
+				ZWaveErrorCodes.CC_NotSupported,
+			);
+		}
+
+		// Ensure the group exists and can be used
+		if (!groupExistsAsMultiChannel && !groupExistsAsNodeAssociation) {
+			throw new ZWaveError(
+				` Association group ${group} does not exist for node ${nodeAndEndpointString}`,
+				ZWaveErrorCodes.AssociationCC_InvalidGroup,
+			);
+		}
+		if (endpointAssociations.length > 0 && !groupExistsAsMultiChannel) {
+			throw new ZWaveError(
+				`Node ${nodeAndEndpointString}, association group ${group} does not support multi channel associations!`,
+				ZWaveErrorCodes.AssociationCC_InvalidGroup,
+			);
+		}
+
+		// Even if we only remove node associations, we use both CCs since it has been found that some
+		// devices do not correctly share the node list between the two commands
+		if (
+			assocInstance &&
+			nodeAssociations.length > 0 &&
+			groupExistsAsNodeAssociation
+		) {
+			await endpoint.commandClasses.Association.removeNodeIds({
+				groupId: group,
+				nodeIds: nodeAssociations,
+			});
+			// Refresh the association list
+			await endpoint.commandClasses.Association.getGroup(group);
+		}
+
+		if (mcInstance && groupExistsAsMultiChannel) {
 			await endpoint.commandClasses[
 				"Multi Channel Association"
 			].removeDestinations({
@@ -2558,38 +2605,6 @@ ${associatedNodes.join(", ")}`,
 			// Refresh the multi channel association list
 			await endpoint.commandClasses["Multi Channel Association"].getGroup(
 				group,
-			);
-		} else if (endpointAssociations.length > 0) {
-			throw new ZWaveError(
-				`Node ${nodeAndEndpointString} does not support multi channel associations!`,
-				ZWaveErrorCodes.CC_NotSupported,
-			);
-		}
-
-		if (endpoint.supportsCC(CommandClasses.Association)) {
-			// Use normal associations as a fallback
-			const cc = endpoint.createCCInstanceUnsafe<AssociationCC>(
-				CommandClasses.Association,
-			)!;
-			if (group > cc.getGroupCountCached()) {
-				// Don't throw if the group existed as multi channel - this branch is only a fallback
-				if (groupExistsAsMultiChannel) return;
-				throw new ZWaveError(
-					`Group ${group} does not exist on node ${nodeAndEndpointString}`,
-					ZWaveErrorCodes.AssociationCC_InvalidGroup,
-				);
-			}
-			// Remove the remaining node associations
-			await endpoint.commandClasses.Association.removeNodeIds({
-				groupId: group,
-				nodeIds: nodeAssociations,
-			});
-			// Refresh the association list
-			await endpoint.commandClasses.Association.getGroup(group);
-		} else if (nodeAssociations.length > 0) {
-			throw new ZWaveError(
-				`Node ${nodeAndEndpointString} does not support associations!`,
-				ZWaveErrorCodes.CC_NotSupported,
 			);
 		}
 	}

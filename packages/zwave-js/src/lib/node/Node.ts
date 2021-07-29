@@ -14,10 +14,10 @@ import {
 	getCCName,
 	isTransmissionError,
 	isZWaveError,
-	MAX_NODES,
 	Maybe,
 	MetadataUpdatedArgs,
 	NodeUpdatePayload,
+	nonApplicationCCs,
 	normalizeValueID,
 	sensorCCs,
 	timespan,
@@ -42,13 +42,17 @@ import {
 	ObjectKeyMap,
 	pick,
 	stringify,
+	TypedEventEmitter,
 } from "@zwave-js/shared";
-import type { Comparer, CompareResult } from "alcalzone-shared/comparable";
 import { padStart } from "alcalzone-shared/strings";
 import { isArray, isObject } from "alcalzone-shared/typeguards";
 import { randomBytes } from "crypto";
 import { EventEmitter } from "events";
-import type { CCAPI, PollValueImplementation } from "../commandclass/API";
+import type {
+	CCAPI,
+	PollValueImplementation,
+	SetValueAPIOptions,
+} from "../commandclass/API";
 import { getHasLifelineValueId } from "../commandclass/AssociationCC";
 import {
 	BasicCC,
@@ -71,6 +75,7 @@ import {
 } from "../commandclass/DoorLockCC";
 import { EntryControlCCNotification } from "../commandclass/EntryControlCC";
 import {
+	FirmwareUpdateCapabilities,
 	FirmwareUpdateMetaDataCC,
 	FirmwareUpdateMetaDataCCGet,
 	FirmwareUpdateMetaDataCCStatusReport,
@@ -128,6 +133,7 @@ import {
 } from "../controller/GetNodeProtocolInfoMessages";
 import type { Driver, SendCommandOptions } from "../driver/Driver";
 import { Extended, interpretEx } from "../driver/StateMachineShared";
+import type { StatisticsEventCallbacksWithSelf } from "../driver/Statistics";
 import type { Transaction } from "../driver/Transaction";
 import { MessagePriority } from "../message/Constants";
 import { DeviceClass } from "./DeviceClass";
@@ -136,6 +142,7 @@ import {
 	createNodeReadyMachine,
 	NodeReadyInterpreter,
 } from "./NodeReadyMachine";
+import { NodeStatistics, NodeStatisticsHost } from "./NodeStatistics";
 import {
 	createNodeStatusMachine,
 	NodeStatusInterpreter,
@@ -150,7 +157,6 @@ import type {
 	FLiRS,
 	TranslatedValueID,
 	ZWaveNodeEventCallbacks,
-	ZWaveNodeEvents,
 	ZWaveNodeValueEventCallbacks,
 } from "./Types";
 import { InterviewStage, NodeStatus, NodeType, ProtocolVersion } from "./Types";
@@ -163,36 +169,18 @@ function getNodeMetaValueID(property: string): ValueID {
 	};
 }
 
-export interface ZWaveNode {
-	on<TEvent extends ZWaveNodeEvents>(
-		event: TEvent,
-		callback: ZWaveNodeEventCallbacks[TEvent],
-	): this;
-	once<TEvent extends ZWaveNodeEvents>(
-		event: TEvent,
-		callback: ZWaveNodeEventCallbacks[TEvent],
-	): this;
-	removeListener<TEvent extends ZWaveNodeEvents>(
-		event: TEvent,
-		callback: ZWaveNodeEventCallbacks[TEvent],
-	): this;
-	off<TEvent extends ZWaveNodeEvents>(
-		event: TEvent,
-		callback: ZWaveNodeEventCallbacks[TEvent],
-	): this;
-	removeAllListeners(event?: ZWaveNodeEvents): this;
-
-	emit<TEvent extends ZWaveNodeEvents>(
-		event: TEvent,
-		...args: Parameters<ZWaveNodeEventCallbacks[TEvent]>
-	): boolean;
-}
+export interface ZWaveNode
+	extends TypedEventEmitter<
+			ZWaveNodeEventCallbacks &
+				StatisticsEventCallbacksWithSelf<ZWaveNode, NodeStatistics>
+		>,
+		NodeStatisticsHost {}
 
 /**
  * A ZWaveNode represents a node in a Z-Wave network. It is also an instance
  * of its root endpoint (index 0)
  */
-@Mixin([EventEmitter])
+@Mixin([EventEmitter, NodeStatisticsHost])
 export class ZWaveNode extends Endpoint {
 	public constructor(
 		public readonly id: number,
@@ -204,7 +192,6 @@ export class ZWaveNode extends Endpoint {
 	) {
 		// Define this node's intrinsic endpoint as the root device (0)
 		super(id, driver, 0, deviceClass, supportedCCs);
-
 		this._valueDB =
 			valueDB ?? new ValueDB(id, driver.valueDB!, driver.metadataDB!);
 		// Pass value events to our listeners
@@ -359,8 +346,8 @@ export class ZWaveNode extends Endpoint {
 			!arg.endpoint &&
 			// Only application CCs need to be filtered
 			applicationCCs.includes(arg.commandClass) &&
-			// and only if a config file does not force us to expose the root endpoint
-			!this._deviceConfig?.compat?.preserveRootApplicationCCValueIDs
+			// and only if the endpoints are not unnecessary and the root values mirror them
+			this.shouldHideRootApplicationCCValues()
 		) {
 			// Iterate through all possible non-root endpoints of this node and
 			// check if there is a value ID that mirrors root endpoint functionality
@@ -637,15 +624,6 @@ export class ZWaveNode extends Endpoint {
 		}
 	}
 
-	private _neighbors: readonly number[] = [];
-	/**
-	 * The IDs of all direct neighbors of this node
-	 * @deprecated Request the current known neighbors using `controller.getNodeNeighbors` instead.
-	 */
-	public get neighbors(): readonly number[] {
-		return this._neighbors;
-	}
-
 	private _valueDB: ValueDB;
 	/**
 	 * Provides access to this node's values
@@ -659,7 +637,6 @@ export class ZWaveNode extends Endpoint {
 	 * Retrieves a stored value for a given value id.
 	 * This does not request an updated value from the node!
 	 */
-	/* wotan-disable-next-line no-misused-generics */
 	public getValue<T = unknown>(valueId: ValueID): T | undefined {
 		return this._valueDB.getValue(valueId);
 	}
@@ -700,10 +677,12 @@ export class ZWaveNode extends Endpoint {
 			}
 		}
 
-		if (!this._deviceConfig?.compat?.preserveRootApplicationCCValueIDs) {
-			// Application command classes of the Root Device capabilities that are also advertised by at
-			// least one End Point SHOULD be filtered out by controlling nodes before presenting the functionalities
-			// via service discovery mechanisms like mDNS or to users in a GUI.
+		// Application command classes of the Root Device capabilities that are also advertised by at
+		// least one End Point SHOULD be filtered out by controlling nodes before presenting the functionalities
+		// via service discovery mechanisms like mDNS or to users in a GUI.
+
+		// We do this when there are endpoints that were explicitly preserved
+		if (this.shouldHideRootApplicationCCValues()) {
 			ret = this.filterRootApplicationCCValueIDs(ret);
 		}
 
@@ -711,7 +690,31 @@ export class ZWaveNode extends Endpoint {
 		return ret.map((id) => this.translateValueID(id));
 	}
 
-	private shouldHideValueID(
+	/** Determines whether the root application CC values should be hidden in favor of endpoint values */
+	private shouldHideRootApplicationCCValues(): boolean {
+		// This is not the case when the root values should explicitly be preserved
+		if (this._deviceConfig?.compat?.preserveRootApplicationCCValueIDs)
+			return false;
+
+		// This is not the case when there are no endpoints
+		const endpointIndizes = this.getEndpointIndizes();
+		if (endpointIndizes.length === 0) return false;
+
+		// This is not the case when only individual endpoints should be preserved in addition to the root
+		const preserveEndpoints = this._deviceConfig?.compat?.preserveEndpoints;
+		if (
+			preserveEndpoints != undefined &&
+			preserveEndpoints !== "*" &&
+			preserveEndpoints.length !== endpointIndizes.length
+		) {
+			return false;
+		}
+
+		// Otherwise they should be hidden
+		return true;
+	}
+
+	private shouldHideRootValueID(
 		valueId: ValueID,
 		allValueIds: ValueID[],
 	): boolean {
@@ -739,7 +742,7 @@ export class ZWaveNode extends Endpoint {
 	 */
 	private filterRootApplicationCCValueIDs(allValueIds: ValueID[]): ValueID[] {
 		return allValueIds.filter(
-			(vid) => !this.shouldHideValueID(vid, allValueIds),
+			(vid) => !this.shouldHideRootValueID(vid, allValueIds),
 		);
 	}
 
@@ -747,7 +750,11 @@ export class ZWaveNode extends Endpoint {
 	 * Updates a value for a given property of a given CommandClass on the node.
 	 * This will communicate with the node!
 	 */
-	public async setValue(valueId: ValueID, value: unknown): Promise<boolean> {
+	public async setValue(
+		valueId: ValueID,
+		value: unknown,
+		options?: SetValueAPIOptions,
+	): Promise<boolean> {
 		// Try to retrieve the corresponding CC API
 		try {
 			// Access the CC API by name
@@ -765,6 +772,7 @@ export class ZWaveNode extends Endpoint {
 					propertyKey: valueId.propertyKey,
 				},
 				value,
+				options,
 			);
 			if (api.isSetValueOptimistic(valueId)) {
 				// If the call did not throw, assume that the call was successful and remember the new value
@@ -801,7 +809,6 @@ export class ZWaveNode extends Endpoint {
 	 * Requests a value for a given property of a given CommandClass by polling the node.
 	 * **Warning:** Some value IDs share a command, so make sure not to blindly call this for every property
 	 */
-	// wotan-disable-next-line no-misused-generics
 	public pollValue<T extends unknown = unknown>(
 		valueId: ValueID,
 		sendCommandOptions: SendCommandOptions = {},
@@ -844,7 +851,12 @@ export class ZWaveNode extends Endpoint {
 		});
 	}
 
-	protected scheduledPolls = new ObjectKeyMap<ValueID, NodeJS.Timeout>();
+	/**
+	 * @internal
+	 * All polls that are currently scheduled for this node
+	 */
+	public scheduledPolls = new ObjectKeyMap<ValueID, NodeJS.Timeout>();
+
 	/**
 	 * @internal
 	 * Schedules a value to be polled after a given time. Only one schedule can be active for a given value ID.
@@ -1125,7 +1137,6 @@ export class ZWaveNode extends Endpoint {
 		this._supportsSecurity = undefined;
 		this._supportsBeaming = undefined;
 		this._deviceConfig = undefined;
-		this._neighbors = [];
 		this._hasEmittedNoNetworkKeyError = false;
 		this._valueDB.clear({ noEvent: true });
 		this._endpointInstances.clear();
@@ -1231,14 +1242,6 @@ export class ZWaveNode extends Endpoint {
 		if (this.interviewStage === InterviewStage.CommandClasses) {
 			// Load a config file for this node if it exists and overwrite the previously reported information
 			await this.overwriteConfig();
-		}
-
-		if (this.interviewStage === InterviewStage.OverwriteConfig) {
-			// Request a list of this node's neighbors
-			// wotan-disable-next-line no-unstable-api-use
-			if (!(await tryInterviewStage(() => this.queryNeighbors()))) {
-				return false;
-			}
 		}
 
 		await this.setInterviewStage(InterviewStage.Complete);
@@ -1592,27 +1595,33 @@ protocol version:      ${this._protocolVersion}`;
 			this.hideBasicCCInFavorOfActuatorCCs();
 		}
 
-		// We determine the correct interview order of the remaining CCs by topologically sorting a dependency graph
-		const rootInterviewGraph = this.buildCCInterviewGraph([
+		// We determine the correct interview order of the remaining CCs by topologically sorting two dependency graph
+		// In order to avoid emitting unnecessary value events for the root endpoint,
+		// we defer the application CC interview until after the other endpoints have been interviewed
+		const rootInterviewGraphBeforeEndpoints = this.buildCCInterviewGraph([
 			CommandClasses.Security,
 			CommandClasses["Security 2"],
 			CommandClasses["Manufacturer Specific"],
 			CommandClasses.Version,
+			...applicationCCs,
 		]);
-		let rootInterviewOrder: CommandClasses[];
+		let rootInterviewOrderBeforeEndpoints: CommandClasses[];
 
-		// In order to avoid emitting unnecessary value events for the root endpoint,
-		// we defer the application CC interview until after the other endpoints have been interviewed
-		const deferApplicationCCs: Comparer<CommandClasses> = (cc1, cc2) => {
-			const cc1IsApplicationCC = applicationCCs.includes(cc1);
-			const cc2IsApplicationCC = applicationCCs.includes(cc2);
-			return ((cc1IsApplicationCC ? 1 : 0) -
-				(cc2IsApplicationCC ? 1 : 0)) as CompareResult;
-		};
+		const rootInterviewGraphAfterEndpoints = this.buildCCInterviewGraph([
+			CommandClasses.Security,
+			CommandClasses["Security 2"],
+			CommandClasses["Manufacturer Specific"],
+			CommandClasses.Version,
+			...nonApplicationCCs,
+		]);
+		let rootInterviewOrderAfterEndpoints: CommandClasses[];
+
 		try {
-			rootInterviewOrder = topologicalSort(
-				rootInterviewGraph,
-				deferApplicationCCs,
+			rootInterviewOrderBeforeEndpoints = topologicalSort(
+				rootInterviewGraphBeforeEndpoints,
+			);
+			rootInterviewOrderAfterEndpoints = topologicalSort(
+				rootInterviewGraphAfterEndpoints,
 			);
 		} catch (e) {
 			// This interview cannot be done
@@ -1623,11 +1632,7 @@ protocol version:      ${this._protocolVersion}`;
 		}
 
 		// Now that we know the correct order, do the interview in sequence
-		let rootCCIndex = 0;
-		for (; rootCCIndex < rootInterviewOrder.length; rootCCIndex++) {
-			const cc = rootInterviewOrder[rootCCIndex];
-			// Once we reach the application CCs, pause the root endpoint interview
-			if (applicationCCs.includes(cc)) break;
+		for (const cc of rootInterviewOrderBeforeEndpoints) {
 			const action = await interviewEndpoint(this, cc);
 			if (action === "continue") continue;
 			else if (typeof action === "boolean") return action;
@@ -1692,8 +1697,7 @@ protocol version:      ${this._protocolVersion}`;
 		}
 
 		// Continue with the application CCs for the root endpoint
-		for (; rootCCIndex < rootInterviewOrder.length; rootCCIndex++) {
-			const cc = rootInterviewOrder[rootCCIndex];
+		for (const cc of rootInterviewOrderAfterEndpoints) {
 			const action = await interviewEndpoint(this, cc);
 			if (action === "continue") continue;
 			else if (typeof action === "boolean") return action;
@@ -1960,17 +1964,6 @@ protocol version:      ${this._protocolVersion}`;
 	}
 
 	/**
-	 * Queries the controller for a node's neighbor nodes during the node interview
-	 * @deprecated This should be done on demand, not once
-	 */
-	protected async queryNeighbors(): Promise<void> {
-		this._neighbors = await this.driver.controller.getNodeNeighbors(
-			this.id,
-		);
-		await this.setInterviewStage(InterviewStage.Neighbors);
-	}
-
-	/**
 	 * @internal
 	 * Handles a CommandClass that was received from this node
 	 */
@@ -1986,21 +1979,20 @@ protocol version:      ${this._protocolVersion}`;
 			command.endpointIndex === 0 &&
 			command.constructor.name.endsWith("Report") &&
 			this.getEndpointCount() >= 1 &&
-			// skip the root to endpoint mapping if the root endpoint values are not meant to mirror endpoint 1
-			!this._deviceConfig?.compat?.preserveRootApplicationCCValueIDs
+			// Only map reports from the root device to an endpoint if we know which one
+			this._deviceConfig?.compat?.mapRootReportsToEndpoint != undefined
 		) {
-			// Find the first endpoint that supports the received CC - if there is none, we don't map the report
-			for (const endpoint of this.getAllEndpoints()) {
-				if (endpoint.index === 0) continue;
-				if (!endpoint.supportsCC(command.ccId)) continue;
+			const endpoint = this.getEndpoint(
+				this._deviceConfig?.compat?.mapRootReportsToEndpoint,
+			);
+			if (endpoint && endpoint.supportsCC(command.ccId)) {
 				// Force the CC to store its values again under the supporting endpoint
 				this.driver.controllerLog.logNode(
 					this.nodeId,
-					`Mapping unsolicited report from root device to first supporting endpoint #${endpoint.index}`,
+					`Mapping unsolicited report from root device to endpoint #${endpoint.index}`,
 				);
 				command.endpointIndex = endpoint.index;
 				command.persistValues();
-				break;
 			}
 		}
 
@@ -2803,6 +2795,29 @@ protocol version:      ${this._protocolVersion}`;
 		  }
 		| undefined;
 
+	/** Retrieves the firmware update capabilities of a node to decide which options to offer a user prior to the update */
+	public async getFirmwareUpdateCapabilities(): Promise<FirmwareUpdateCapabilities> {
+		const api = this.commandClasses["Firmware Update Meta Data"];
+		const meta = await api.getMetaData();
+		if (!meta) {
+			throw new ZWaveError(
+				`Failed to request firmware update capabilities: The node did not respond in time!`,
+				ZWaveErrorCodes.Controller_NodeTimeout,
+			);
+		} else if (!meta.firmwareUpgradable) {
+			return {
+				firmwareUpgradable: false,
+			};
+		}
+
+		return {
+			firmwareUpgradable: true,
+			firmwareTargets: [0, ...meta.additionalFirmwareIDs],
+			continuesToFunction: meta.continuesToFunction,
+			supportsActivation: meta.supportsActivation,
+		};
+	}
+
 	/**
 	 * Starts an OTA firmware update process for this node.
 	 *
@@ -2839,28 +2854,30 @@ protocol version:      ${this._protocolVersion}`;
 		const meta = await api.getMetaData();
 		if (!meta) {
 			throw new ZWaveError(
-				`The node did not respond in time`,
+				`Failed to start the update: The node did not respond in time!`,
 				ZWaveErrorCodes.Controller_NodeTimeout,
 			);
 		}
-		if (target === 0 && !meta.firmwareUpgradable) {
-			throw new ZWaveError(
-				`The Z-Wave chip firmware is not upgradable`,
-				ZWaveErrorCodes.FirmwareUpdateCC_NotUpgradable,
-			);
-		} else if (version < 3 && target !== 0) {
-			throw new ZWaveError(
-				`Upgrading different firmware targets requires version 3+`,
-				ZWaveErrorCodes.FirmwareUpdateCC_TargetNotFound,
-			);
-		} else if (
-			target < 0 ||
-			(target > 0 && meta.additionalFirmwareIDs.length < target)
-		) {
-			throw new ZWaveError(
-				`Firmware target #${target} not found!`,
-				ZWaveErrorCodes.FirmwareUpdateCC_TargetNotFound,
-			);
+
+		if (target === 0) {
+			if (!meta.firmwareUpgradable) {
+				throw new ZWaveError(
+					`Failed to start the update: The Z-Wave chip firmware is not upgradable!`,
+					ZWaveErrorCodes.FirmwareUpdateCC_NotUpgradable,
+				);
+			}
+		} else {
+			if (version < 3) {
+				throw new ZWaveError(
+					`Failed to start the update: The node does not support upgrading a different firmware target than 0!`,
+					ZWaveErrorCodes.FirmwareUpdateCC_TargetNotFound,
+				);
+			} else if (!meta.additionalFirmwareIDs.includes(target)) {
+				throw new ZWaveError(
+					`Failed to start the update: Firmware target #${target} not found on this node!`,
+					ZWaveErrorCodes.FirmwareUpdateCC_TargetNotFound,
+				);
+			}
 		}
 
 		// Determine the fragment size
@@ -3281,7 +3298,6 @@ protocol version:      ${this._protocolVersion}`;
 				generic: this.deviceClass.generic.key,
 				specific: this.deviceClass.specific.key,
 			},
-			neighbors: [...this._neighbors].sort(),
 			isListening: this.isListening,
 			isFrequentListening: this.isFrequentListening,
 			isRouting: this.isRouting,
@@ -3400,13 +3416,6 @@ protocol version:      ${this._protocolVersion}`;
 			obj.supportedDataRates.every((r: unknown) => typeof r === "number")
 		) {
 			this._supportedDataRates = obj.supportedDataRates;
-		}
-
-		if (isArray(obj.neighbors)) {
-			// parse only valid node IDs
-			this._neighbors = obj.neighbors.filter(
-				(n: any) => typeof n === "number" && n > 0 && n <= MAX_NODES,
-			);
 		}
 
 		function enforceType(

@@ -42,6 +42,7 @@ export interface DeviceConfigIndexEntry {
 	productType: string;
 	productId: string;
 	firmwareVersion: FirmwareVersionRange;
+	rootDir?: string;
 	filename: string;
 }
 
@@ -53,6 +54,7 @@ export interface FulltextDeviceConfigIndexEntry {
 	productType: string;
 	productId: string;
 	firmwareVersion: FirmwareVersionRange;
+	rootDir?: string;
 	filename: string;
 }
 
@@ -66,10 +68,10 @@ export type ParamInfoMap = ReadonlyObjectKeyMap<
 	ParamInformation
 >;
 
-const embeddedDevicesDir = path.join(configDir, "devices");
+export const embeddedDevicesDir = path.join(configDir, "devices");
 const fulltextIndexPath = path.join(embeddedDevicesDir, "fulltext_index.json");
 
-function getDevicesPaths(configDir: string): {
+export function getDevicesPaths(configDir: string): {
 	devicesDir: string;
 	indexPath: string;
 } {
@@ -114,10 +116,11 @@ async function hasChangedDeviceFiles(
  */
 async function generateIndex<T extends Record<string, unknown>>(
 	devicesDir: string,
+	isEmbedded: boolean,
 	extractIndexEntries: (config: DeviceConfig) => T[],
 	logger?: ConfigLogger,
-): Promise<(T & { filename: string })[]> {
-	const index: (T & { filename: string })[] = [];
+): Promise<(T & { filename: string; rootDir?: string })[]> {
+	const index: (T & { filename: string; rootDir?: string })[] = [];
 
 	const configFiles = await enumFilesRecursive(
 		devicesDir,
@@ -134,15 +137,23 @@ async function generateIndex<T extends Record<string, unknown>>(
 			.replace(/\\/g, "/");
 		// Try parsing the file
 		try {
-			const config = await DeviceConfig.from(file, {
-				relativeTo: devicesDir,
+			const config = await DeviceConfig.from(file, isEmbedded, {
+				rootDir: devicesDir,
+				relative: true,
 			});
 			// Add the file to the index
 			index.push(
-				...extractIndexEntries(config).map((entry) => ({
-					...entry,
-					filename: relativePath,
-				})),
+				...extractIndexEntries(config).map((entry) => {
+					const ret: T & { filename: string; rootDir?: string } = {
+						...entry,
+						filename: relativePath,
+					};
+					// Only add the root dir to the index if necessary
+					if (devicesDir !== embeddedDevicesDir) {
+						ret.rootDir = devicesDir;
+					}
+					return ret;
+				}),
 			);
 		} catch (e: unknown) {
 			const message = `Error parsing config file ${relativePath}: ${
@@ -211,7 +222,12 @@ async function loadDeviceIndexShared<T extends Record<string, unknown>>(
 
 	if (needsUpdate) {
 		// Read all files from disk and generate an index
-		index = await generateIndex(devicesDir, extractIndexEntries, logger);
+		index = await generateIndex(
+			devicesDir,
+			true,
+			extractIndexEntries,
+			logger,
+		);
 		// Save the index to disk
 		try {
 			await writeFile(
@@ -247,6 +263,7 @@ export async function generatePriorityDeviceIndex(
 	return (
 		await generateIndex(
 			deviceConfigPriorityDir,
+			false,
 			(config) =>
 				config.devices.map((dev) => ({
 					manufacturerId: formatId(
@@ -257,6 +274,7 @@ export async function generatePriorityDeviceIndex(
 					productType: formatId(dev.productType),
 					productId: formatId(dev.productId),
 					firmwareVersion: config.firmwareVersion,
+					rootDir: deviceConfigPriorityDir,
 				})),
 			logger,
 		)
@@ -278,7 +296,7 @@ export async function loadDeviceIndexInternal(
 	externalConfig?: boolean,
 ): Promise<DeviceConfigIndex> {
 	const { devicesDir, indexPath } = getDevicesPaths(
-		(externalConfig && externalConfigDir) || configDir,
+		(externalConfig && externalConfigDir()) || configDir,
 	);
 
 	return loadDeviceIndexShared(
@@ -318,6 +336,7 @@ export async function loadFulltextDeviceIndexInternal(
 				productType: formatId(dev.productType),
 				productId: formatId(dev.productId),
 				firmwareVersion: config.firmwareVersion,
+				rootDir: embeddedDevicesDir,
 			})),
 		logger,
 	);
@@ -354,21 +373,24 @@ function conditionApplies(condition: string, context: unknown): boolean {
 export class ConditionalDeviceConfig {
 	public static async from(
 		filename: string,
+		isEmbedded: boolean,
 		options: {
-			relativeTo?: string;
-		} = {},
+			rootDir: string;
+			relative?: boolean;
+		},
 	): Promise<ConditionalDeviceConfig> {
-		const { relativeTo } = options;
+		const { relative, rootDir } = options;
 
-		const relativePath = relativeTo
-			? path.relative(relativeTo, filename).replace(/\\/g, "/")
+		const relativePath = relative
+			? path.relative(rootDir, filename).replace(/\\/g, "/")
 			: filename;
-		const json = await readJsonWithTemplate(filename);
-		return new ConditionalDeviceConfig(relativePath, json);
+		const json = await readJsonWithTemplate(filename, options.rootDir);
+		return new ConditionalDeviceConfig(relativePath, isEmbedded, json);
 	}
 
-	public constructor(filename: string, definition: any) {
+	public constructor(filename: string, isEmbedded: boolean, definition: any) {
 		this.filename = filename;
+		this.isEmbedded = isEmbedded;
 
 		if (!isHexKeyWith4Digits(definition.manufacturerId)) {
 			throwInvalidConfig(
@@ -624,6 +646,9 @@ metadata is not an object`,
 	/** Contains instructions and other metadata for the device */
 	public readonly metadata?: DeviceMetadata;
 
+	/** Whether this is an embedded configuration or not */
+	public readonly isEmbedded: boolean;
+
 	public evaluate(deviceId?: DeviceID): DeviceConfig {
 		let associations: Map<number, AssociationConfig> | undefined;
 		if (this.associations) {
@@ -662,6 +687,7 @@ metadata is not an object`,
 
 		return new DeviceConfig(
 			this.filename,
+			this.isEmbedded,
 			this.manufacturer,
 			this.manufacturerId,
 			this.label,
@@ -681,17 +707,26 @@ metadata is not an object`,
 export class DeviceConfig {
 	public static async from(
 		filename: string,
+		isEmbedded: boolean,
 		options: {
-			relativeTo?: string;
+			rootDir: string;
+			relative?: boolean;
 			deviceId?: DeviceID;
-		} = {},
+		},
 	): Promise<DeviceConfig> {
-		const ret = await ConditionalDeviceConfig.from(filename, options);
+		const ret = await ConditionalDeviceConfig.from(
+			filename,
+			isEmbedded,
+			options,
+		);
 		return ret.evaluate(options.deviceId);
 	}
 
 	public constructor(
 		public readonly filename: string,
+		/** Whether this is an embedded configuration or not */
+		public readonly isEmbedded: boolean,
+
 		public readonly manufacturer: string,
 		public readonly manufacturerId: number,
 		public readonly label: string,
@@ -713,15 +748,24 @@ export class DeviceConfig {
 		public readonly compat?: CompatConfig,
 		/** Contains instructions and other metadata for the device */
 		public readonly metadata?: DeviceMetadata,
-	) {
-		// A config file is treated as am embedded one when it is located under the devices root dir
-		this.isEmbedded = !path
-			.relative(embeddedDevicesDir, this.filename)
-			.startsWith("..");
-	}
+	) {}
 
-	/** Whether this is an embedded configuration or not */
-	public readonly isEmbedded: boolean;
+	/** Returns the association config for a given endpoint */
+	public getAssociationConfigForEndpoint(
+		endpointIndex: number,
+		group: number,
+	): AssociationConfig | undefined {
+		if (endpointIndex === 0) {
+			// The root endpoint's associations may be configured separately or as part of "endpoints"
+			return (
+				this.associations?.get(group) ??
+				this.endpoints?.get(0)?.associations?.get(group)
+			);
+		} else {
+			// The other endpoints can only have a configuration as part of "endpoints"
+			return this.endpoints?.get(endpointIndex)?.associations?.get(group);
+		}
+	}
 }
 
 export class ConditionalEndpointConfig {
@@ -879,16 +923,16 @@ isLifeline in association ${groupId} must be a boolean`,
 
 		if (
 			definition.multiChannel != undefined &&
-			definition.multiChannel !== false
+			typeof definition.multiChannel !== "boolean"
 		) {
 			throwInvalidConfig(
 				"devices",
 				`packages/config/config/devices/${filename}:
-multiChannel in association ${groupId} must be either false or left out`,
+multiChannel in association ${groupId} must be a boolean`,
 			);
 		}
-		// Default to multi channel associations
-		this.multiChannel = definition.multiChannel ?? true;
+		// Default to the "auto" strategy
+		this.multiChannel = definition.multiChannel ?? "auto";
 	}
 
 	public readonly condition?: string;
@@ -902,8 +946,14 @@ multiChannel in association ${groupId} must be either false or left out`,
 	 * While Z-Wave+ defines a single lifeline, older devices may have multiple lifeline associations.
 	 */
 	public readonly isLifeline: boolean;
-	/** Some devices support multi channel associations but require some of its groups to use node id associations */
-	public readonly multiChannel: boolean;
+	/**
+	 * Controls the strategy of setting up lifeline associations:
+	 *
+	 * * `true` - Use a multi channel association (if possible)
+	 * * `false` - Use a node association (if possible)
+	 * * `"auto"` - Prefer node associations, fall back to multi channel associations
+	 */
+	public readonly multiChannel: boolean | "auto";
 
 	public evaluateCondition(
 		deviceId?: DeviceID,
