@@ -840,9 +840,8 @@ async function parseZWAFiles(): Promise<void> {
 	for (const file of jsonData) {
 		// Lookup the manufacturer
 		const manufacturerId = parseInt(file.ManufacturerId, 16);
-		const manufacturerName = configManager.lookupManufacturer(
-			manufacturerId,
-		);
+		const manufacturerName =
+			configManager.lookupManufacturer(manufacturerId);
 
 		// Add the manufacturer to our manufacturers.json if it is missing
 		if (Number.isNaN(manufacturerId)) {
@@ -1251,8 +1250,9 @@ async function parseZWAProduct(
 	const exclusion = product?.Texts?.find(
 		(document: any) => document.Type === 2,
 	)?.value;
-	const reset = product?.Texts?.find((document: any) => document.Type === 5)
-		?.value;
+	const reset = product?.Texts?.find(
+		(document: any) => document.Type === 5,
+	)?.value;
 	let manual = product?.Documents?.find(
 		(document: any) => document.Type === 1,
 	)?.value;
@@ -1518,22 +1518,7 @@ async function parseZWAProduct(
 
 async function maintenanceParse(): Promise<void> {
 	// Parse json files in the zwaTempDir
-	const zwaData = [];
-
-	// Load the zwa files
-	await fs.ensureDir(zwaTempDir);
-	const zwaFiles = await enumFilesRecursive(zwaTempDir, (file) =>
-		file.endsWith(".json"),
-	);
-	for (const file of zwaFiles) {
-		// zWave Alliance numbering isn't always continuous and an html page is
-		// returned when a device number doesn't. Test for and delete such files.
-		try {
-			zwaData.push(await fs.readJSON(file, { encoding: "utf8" }));
-		} catch {
-			await fs.unlink(file);
-		}
-	}
+	const filesToProcess = {};
 
 	// Build the list of device files
 	const configFiles = await enumFilesRecursive(processedDir, (file) =>
@@ -1541,71 +1526,229 @@ async function maintenanceParse(): Promise<void> {
 	);
 	for (const file of configFiles) {
 		const j = await fs.readFile(file, "utf8");
-
 		let jsonData;
 		try {
-			jsonData = JSONC.parse(j);
+			jsonData = await JSONC.parse(j);
 		} catch (e) {
 			console.log(
 				`Error processing: ${file} - ${getErrorMessage(e, true)}`,
 			);
 		}
 
-		const includedZwaFiles: number[] = [];
-
 		try {
-			for (const device of jsonData.devices) {
-				if (isArray(device.zwaveAllianceId)) {
-					includedZwaFiles.push(...device.zwaveAllianceId);
-				} else if (device.zwaveAllianceId) {
-					includedZwaFiles.push(device.zwaveAllianceId);
-				}
+			if (
+				jsonData.firmwareVersion.min !== "0.0" ||
+				jsonData.firmwareVersion.max !== "255.255"
+			) {
+				filesToProcess[file] = jsonData;
 			}
-		} catch (e) {
-			console.log(
-				`Error iterating: ${file} - ${getErrorMessage(e, true)}`,
-			);
+		} catch {
+			// Do nothing
+		}
+	}
+
+	console.log(`Files to process: ${Object.keys(filesToProcess).length}`);
+
+	const stageTwo = {};
+	// Process the files
+	for (const file of Object.keys(filesToProcess)) {
+		const rootFile = file.replace(/\_.*/, "");
+
+		// Remove origial file
+		await fs.unlink(file);
+
+		const deviceGroup = [];
+		for (let f of Object.keys(filesToProcess)) {
+			if (f.includes(rootFile)) {
+				deviceGroup.push(filesToProcess[f]);
+			}
 		}
 
-		includedZwaFiles.sort(function (a, b) {
-			return a - b;
-		});
+		stageTwo[rootFile + ".json"] = deviceGroup;
+	}
 
-		for (const referenceDevice of includedZwaFiles) {
-			for (const zwafile of zwaData) {
-				if (zwafile.Id === referenceDevice) {
-					let manual = zwafile?.Documents?.find(
-						(document: any) => document.Type === 1,
-					)?.value;
+	// Stage two
+	for (const file in stageTwo) {
+		const newFile = {};
+		let completedParams = [];
 
-					const website_root =
-						"https://products.z-wavealliance.org/ProductManual/File?folder=&filename=";
+		// Skip the few files that don't need to be processed
+		if (stageTwo[file].length === 1) {
+			console.log(`Skipping: ${file} - Length: ${stageTwo[file].length}`);
+			continue;
+		} else {
+			console.log(`Processing: ${file}`);
+		}
 
-					if (manual) {
-						manual = manual.replace(/ /g, "%20");
-						manual = website_root.concat(manual);
+		newFile.manufacturer = stageTwo[file][0].manufacturer;
+		newFile.manufacturerId = stageTwo[file][0].manufacturerId;
+		newFile.label = stageTwo[file][0].label;
+		newFile.description = stageTwo[file][0].description;
+		newFile.devices = stageTwo[file][0].devices;
+		newFile.firmwareVersion = {};
+		newFile.firmwareVersion.min = "0.0";
+		newFile.firmwareVersion.max = "255.255";
+		newFile.associations = stageTwo[file][0].associations;
+		newFile.paramInformation = [];
+		newFile.compat = stageTwo[file][0].compat;
+		newFile.proprietary = stageTwo[file][0].proprietary;
 
-						if (jsonData.metadata) {
-							jsonData.metadata.manual = manual;
-							break;
-						} else {
-							jsonData.metadata = {};
-							jsonData.metadata.manual = manual;
-							break;
+		if (stageTwo[file][0].paramInformation) {
+			let tempParam = [];
+			let eventualParam = [];
+
+			for (const f in stageTwo[file]) {
+				for (const param of stageTwo[file][f].paramInformation) {
+					tempParam = [];
+					eventualParam = [];
+					if (parseInt(f, 10) === 0) {
+						param.startingVersion = "0.0";
+					} else {
+						param.startingVersion =
+							stageTwo[file][f].firmwareVersion.min;
+					}
+
+					const currentParam = param["#"];
+					if (completedParams.includes(currentParam)) {
+						continue;
+					} else {
+						completedParams.push(currentParam);
+						tempParam.push(param);
+					}
+
+					let currentMin = param["minValue"];
+					let currentMax = param["maxValue"];
+					let currentDefault = param["defaultValue"];
+					let currentValueSize = param["valueSize"];
+
+					for (let i = 1; i <= stageTwo[file].length - 1; i++) {
+						for (const test of stageTwo[file][i].paramInformation) {
+							const testParam = test["#"];
+							const testMin = test.minValue;
+							const testMax = test.maxValue;
+							const testDefault = test.defaultValue;
+							const testValueSize = test.valueSize;
+
+							const testResult = [
+								testParam === currentParam,
+								testMin === currentMin,
+								testMax === currentMax,
+								testDefault === currentDefault,
+								testValueSize === currentValueSize,
+							];
+
+							if (
+								testResult.includes(false) &&
+								testParam === currentParam
+							) {
+								const fw =
+									stageTwo[file][i].firmwareVersion.min.split(
+										".",
+									);
+								let fwMin = parseInt(fw[0], 10);
+								let fwMinMinor = parseInt(fw[1], 10);
+
+								if (fwMinMinor > 0) {
+									fwMinMinor -= 1;
+								} else {
+									fwMin -= 1;
+									fwMinMinor = 255;
+								}
+
+								try {
+									tempParam[
+										tempParam.length - 1
+									].endingVersion = `${fwMin}.${fwMinMinor}`;
+									test.startingVersion =
+										stageTwo[file][i].firmwareVersion.min;
+									tempParam.push(test);
+
+									// Inherit newly found value
+									currentMin = testMin;
+									currentMax = testMax;
+									currentDefault = testDefault;
+									currentValueSize = testValueSize;
+								} catch (e) {
+									console.log(JSON.stringify(param));
+									console.log(`f is ${f}`);
+									console.log(`i is ${i}`);
+									console.log(`fwMin is ${fwMin}`);
+									console.log(fwMinMinor);
+									console.log(tempParam.length);
+									console.log(
+										`Error processing: ${file} - ${getErrorMessage(
+											e,
+											true,
+										)}`,
+									);
+								}
+							}
 						}
 					}
+
+					for (const p of tempParam) {
+						const temp = {};
+						temp["#"] = p["#"];
+
+						if (p.$if) {
+							temp.$if = p.$if;
+						} else if (
+							p.startingVersion &&
+							p.startingVersion === "0.0" &&
+							p.endingVersion
+						) {
+							temp.$if = `firmwareVersion <= ${p.endingVersion}`;
+						} else if (p.startingVersion && p.endingVersion) {
+							temp.$if = `firmwareVersion >= ${p.startingVersion} && firmwareVersion <= ${p.endingVersion}`;
+						} else if (
+							p.startingVersion &&
+							p.startingVersion !== "0.0"
+						) {
+							temp.$if = `firmwareVersion >= ${p.startingVersion}`;
+						} else if (p.endingVersion) {
+							temp.$if = `firmwareVersion <= ${p.endingVersion}`;
+						}
+
+						temp.$import = p.$import;
+						temp.label = p.label;
+						temp.description = p.description;
+						temp.valueSize = p.valueSize;
+						temp.minValue = p.minValue;
+						temp.maxValue = p.maxValue;
+						temp.defaultValue = p.defaultValue;
+						temp.unsigned = p.unsigned;
+						temp.readOnly = p.readOnly;
+						temp.writeOnly = p.writeOnly;
+						temp.allowManualEntry = p.allowManualEntry;
+						temp.options = p.options;
+
+						eventualParam.push(temp);
+					}
+
+					newFile.paramInformation =
+						newFile.paramInformation.concat(eventualParam);
 				}
 			}
 		}
 
-		if (jsonData.metadata) {
-			/*************************************
-			 *   Write the configuration file    *
-			 *************************************/
-			const output =
-				JSONC.stringify(normalizeConfig(jsonData), null, "\t") + "\n";
-			await fs.writeFile(file, output, "utf8");
-		}
+		// Sort the paramInformation
+		newFile.paramInformation = newFile.paramInformation.sort((a, b) => {
+			if (parseInt(a["#"], 10) < parseInt(b["#"], 10)) {
+				return -1;
+			}
+			if (parseInt(a["#"], 10) > parseInt(b["#"], 10)) {
+				return 1;
+			}
+			return 0;
+		});
+
+		console.log(`Completed: ${file}`);
+		/*************************************
+		 *   Write the configuration file    *
+		 *************************************/
+		const output =
+			JSONC.stringify(normalizeConfig(newFile), null, "\t") + "\n";
+		await fs.writeFile(file, output, "utf8");
 	}
 }
 
