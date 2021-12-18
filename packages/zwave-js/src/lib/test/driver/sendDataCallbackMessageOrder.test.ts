@@ -26,6 +26,10 @@ describe("regression tests", () => {
 	beforeEach(async () => {
 		({ driver, serialport } = await createAndStartDriver({
 			networkKey: Buffer.alloc(16, 0),
+			// logConfig: {
+			// 	enabled: true,
+			// 	logToFile: true,
+			// },
 		}));
 
 		driver["_securityManager"] = new SecurityManager({
@@ -62,7 +66,7 @@ describe("regression tests", () => {
 		jest.setTimeout(5000);
 		// Repro from #1144
 
-		// A send data request for an outgoing handshake response is received after the response we expected
+		// A send data request for an outgoing nonce response is received after the response we expected
 		// This causes it to get matched to the following message
 
 		const node15 = new ZWaveNode(15, driver);
@@ -100,6 +104,7 @@ describe("regression tests", () => {
 		const ACK = Buffer.from([MessageHeaders.ACK]);
 
 		const configGetPromise = node17.commandClasses.Configuration.get(43);
+		await wait(1);
 		const getRoutingInfoPromise =
 			driver.sendMessage<GetRoutingInfoResponse>(
 				new GetRoutingInfoRequest(driver, {
@@ -108,6 +113,7 @@ describe("regression tests", () => {
 					removeNonRepeaters: false,
 				}),
 			);
+		await wait(1);
 
 		// » [Node 017] [REQ] [SendData]
 		//   │ transmit options: 0x25
@@ -147,7 +153,7 @@ describe("regression tests", () => {
 		// » [ACK]
 		expect(serialport.lastWrite).toEqual(ACK);
 
-		await wait(1);
+		await wait(150);
 
 		// » [Node 017] [REQ] [SendData]
 		//   │ transmit options: 0x25
@@ -227,7 +233,7 @@ describe("regression tests", () => {
 			{ nonce: sentNonce, receiver: 17 },
 		);
 		const encap = SecurityCC.encapsulate(driver17, configReport);
-		encap.nonceId = sentNonce[0];
+		encap.nonce = sentNonce;
 		const msg = new ApplicationCommandRequest(driver17, {
 			command: encap,
 		});

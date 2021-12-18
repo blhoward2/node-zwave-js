@@ -165,6 +165,29 @@
 		"$import": "#base_enable_disable",
 		"label": "Inverted Orientation"
 	},
+	"orientation_momentary": {
+		"label": "Inverted Orientation",
+		"valueSize": 1,
+		"minValue": 0,
+		"maxValue": 2,
+		"defaultValue": 0,
+		"unsigned": true,
+		"allowManualEntry": false,
+		"options": [
+			{
+				"label": "Disable",
+				"value": 0
+			},
+			{
+				"label": "Enable",
+				"value": 1
+			},
+			{
+				"label": "Momentary mode",
+				"value": 2
+			}
+		]
+	},
 	"enable_led_indicator": {
 		"$import": "#base_enable_disable",
 		"label": "LED Indicator"
@@ -310,11 +333,11 @@
 				"value": 0
 			},
 			{
-				"label": "Always on",
+				"label": "Always off",
 				"value": 1
 			},
 			{
-				"label": "Always off",
+				"label": "Always on",
 				"value": 2
 			}
 		]
@@ -399,6 +422,56 @@
 			},
 			{
 				"label": "Return to schedule (Schedule CC)",
+				"value": 3
+			}
+		]
+	},
+	"smart_switch_mode_0-2": {
+		"label": "Smart Switch Mode",
+		"valueSize": 1,
+		"minValue": 0,
+		"maxValue": 3,
+		"defaultValue": 3,
+		"unsigned": true,
+		"allowManualEntry": false,
+		"options": [
+			{
+				"label": "Local control disabled",
+				"value": 0
+			},
+			{
+				"label": "Local and Z-Wave control enabled",
+				"value": 1
+			},
+			{
+				"label": "Local and Z-Wave control disabled",
+				"value": 2
+			}
+		]
+	},
+	"smart_switch_mode_0-3": {
+		"label": "Smart Switch Mode",
+		"valueSize": 1,
+		"minValue": 0,
+		"maxValue": 3,
+		"defaultValue": 3,
+		"unsigned": true,
+		"allowManualEntry": false,
+		"options": [
+			{
+				"label": "Disable",
+				"value": 0
+			},
+			{
+				"label": "Local control only",
+				"value": 1
+			},
+			{
+				"label": "Central Scene only",
+				"value": 2
+			},
+			{
+				"label": "Local and Central Scene",
 				"value": 3
 			}
 		]

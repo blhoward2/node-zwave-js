@@ -112,7 +112,7 @@ export {
 	ColorSwitchCCSupportedReport,
 } from "./ColorSwitchCC";
 export type { ColorTable } from "./ColorSwitchCC";
-export { CommandClass, InvalidCC } from "./CommandClass";
+export { CommandClass, getAPI, InvalidCC } from "./CommandClass";
 export {
 	ConfigurationCC,
 	ConfigurationCCBulkGet,
@@ -149,6 +149,15 @@ export {
 	DoorLockOperationType,
 } from "./DoorLockCC";
 export type { DoorHandleStatus } from "./DoorLockCC";
+export {
+	DoorLockLoggingCC,
+	DoorLockLoggingCCRecordGet,
+	DoorLockLoggingCCRecordReport,
+	DoorLockLoggingCCRecordsSupportedGet,
+	DoorLockLoggingCCRecordsSupportedReport,
+	EventType,
+	RecordStatus,
+} from "./DoorLockLoggingCC";
 export {
 	EntryControlCC,
 	EntryControlCCConfigurationGet,
@@ -311,6 +320,21 @@ export type {
 	ZWaveNotificationCallbackParams_NotificationCC,
 } from "./NotificationCC";
 export {
+	Powerlevel,
+	PowerlevelCC,
+	PowerlevelCCGet,
+	PowerlevelCCReport,
+	PowerlevelCCSet,
+	PowerlevelCCTestNodeGet,
+	PowerlevelCCTestNodeReport,
+	PowerlevelCCTestNodeSet,
+	PowerlevelTestStatus,
+} from "./PowerlevelCC";
+export type {
+	ZWaveNotificationCallbackArgs_PowerlevelCC,
+	ZWaveNotificationCallbackParams_PowerlevelCC,
+} from "./PowerlevelCC";
+export {
 	LocalProtectionState,
 	ProtectionCC,
 	ProtectionCCExclusiveControlGet,
@@ -339,6 +363,23 @@ export {
 	SceneControllerConfigurationCCReport,
 	SceneControllerConfigurationCCSet,
 } from "./SceneControllerConfigurationCC";
+export {
+	Security2CC,
+	Security2CCCommandsSupportedGet,
+	Security2CCCommandsSupportedReport,
+	Security2CCKEXFail,
+	Security2CCKEXGet,
+	Security2CCKEXReport,
+	Security2CCKEXSet,
+	Security2CCMessageEncapsulation,
+	Security2CCNetworkKeyGet,
+	Security2CCNetworkKeyReport,
+	Security2CCNetworkKeyVerify,
+	Security2CCNonceGet,
+	Security2CCNonceReport,
+	Security2CCPublicKeyReport,
+	Security2CCTransferEnd,
+} from "./Security2CC";
 export {
 	SecurityCC,
 	SecurityCCCommandEncapsulation,

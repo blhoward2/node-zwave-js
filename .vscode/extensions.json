@@ -1,11 +1,8 @@
 {
-  "recommendations": [
-    "rebornix.project-snippets",
-    "dbaeumer.vscode-eslint",
-    "Orta.vscode-jest",
-    "esbenp.prettier-vscode",
-    "EditorConfig.EditorConfig",
-    "eamodio.toggle-excluded-files",
-    "arcanis.vscode-zipfs"
-  ]
+	"recommendations": [
+		"dbaeumer.vscode-eslint",
+		"esbenp.prettier-vscode",
+		"EditorConfig.EditorConfig",
+		"amodio.toggle-excluded-files"
+	]
 }

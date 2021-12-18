@@ -3,6 +3,7 @@ name: Publish nightly configuration updates
 on:
   schedule:
     - cron: 0 2 * * * # Every day at 02:00
+  workflow_dispatch: # Manually on demand
 
 jobs:
   publish-config:
@@ -63,7 +64,7 @@ jobs:
         # ===============================
 
         # Verify that only @zwave-js/config and zwave-js are changed
-        LERNA_CHANGED=$(yarn lerna changed)
+        LERNA_CHANGED=$(lerna changed)
         if [[ $(echo -e "@zwave-js/config\nzwave-js") != "$LERNA_CHANGED" ]]; then
           echo "❌ Lerna detected unexpected package changes, aborting..."
           echo "These packages are changed:"
@@ -76,7 +77,7 @@ jobs:
         # ===============================
 
         # Create a clean build
-        yarn lerna run build
+        lerna run build
 
         # Lint config files
         yarn run lint:config

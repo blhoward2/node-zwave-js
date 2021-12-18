@@ -99,6 +99,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("the start promise should be rejected if the port opening fails", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
+				attempts: { openSerialPort: 1 },
 				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
@@ -110,7 +111,9 @@ describe("lib/driver/Driver => ", () => {
 
 			// fail opening of the serialport
 			const portInstance = MockSerialPort.getInstance(PORT_ADDRESS)!;
-			portInstance.openStub.mockRejectedValue(new Error("NOPE"));
+			portInstance.openStub.mockImplementation(() =>
+				Promise.reject(new Error("NOPE")),
+			);
 
 			await expect(startPromise).rejects.toThrow("NOPE");
 			await driver.destroy();
@@ -118,6 +121,7 @@ describe("lib/driver/Driver => ", () => {
 
 		it("after a failed start, starting again should not be possible", async () => {
 			const driver = new Driver(PORT_ADDRESS, {
+				attempts: { openSerialPort: 1 },
 				interview: { skipInterview: true },
 				logConfig: { enabled: false },
 			});
@@ -404,6 +408,7 @@ describe("lib/driver/Driver => ", () => {
 					has: () => true,
 					get: () => node2,
 					forEach: () => {},
+					values: () => [node2],
 				},
 				isFunctionSupported,
 				incrementStatistics: () => {},
@@ -479,6 +484,7 @@ describe("lib/driver/Driver => ", () => {
 					has: () => true,
 					get: () => node2,
 					forEach: () => {},
+					values: () => [node2],
 				},
 				isFunctionSupported,
 				incrementStatistics: () => {},
@@ -768,6 +774,7 @@ describe("lib/driver/Driver => ", () => {
 					has: () => true,
 					get: () => node2,
 					forEach: () => {},
+					values: () => [node2],
 				},
 				isFunctionSupported,
 			} as any;
@@ -788,6 +795,39 @@ describe("lib/driver/Driver => ", () => {
 			expect(driver["hasPendingMessages"](node2)).toBeTrue();
 			node2.cancelScheduledPoll(valueId);
 			expect(driver["hasPendingMessages"](node2)).toBeFalse();
+		});
+	});
+
+	describe("option validation", () => {
+		let driver: Driver;
+
+		afterEach(async () => {
+			if (driver) {
+				await driver.destroy();
+				driver.removeAllListeners();
+			}
+		});
+
+		it("duplicate security keys", () => {
+			assertZWaveError(
+				() => {
+					driver = new Driver("/dev/test", {
+						securityKeys: {
+							S0_Legacy: Buffer.from(
+								"0102030405060708090a0b0c0d0e0f10",
+								"hex",
+							),
+							S2_Unauthenticated: Buffer.from(
+								"0102030405060708090a0b0c0d0e0f10",
+								"hex",
+							),
+						},
+					});
+				},
+				{
+					errorCode: ZWaveErrorCodes.Driver_InvalidOptions,
+				},
+			);
 		});
 	});
 });

@@ -277,6 +277,8 @@ export class AssociationCC extends CommandClass {
 		return [
 			...super.determineRequiredCCInterviews(),
 			CommandClasses["Z-Wave Plus Info"],
+			// We need information about endpoints to correctly configure the lifeline associations
+			CommandClasses["Multi Channel"],
 		];
 	}
 
@@ -371,21 +373,21 @@ export class AssociationCC extends CommandClass {
 			return;
 		}
 
+		// Query each association group for its members
+		await this.refreshValues();
+
 		// Skip the remaining quer Association CC in favor of Multi Channel Association if possible
 		if (
 			endpoint.commandClasses["Multi Channel Association"].isSupported()
 		) {
 			this.driver.controllerLog.logNode(node.id, {
 				endpoint: this.endpointIndex,
-				message: `${this.constructor.name}: skipping remaining interview because Multi Channel Association is supported...`,
+				message: `${this.constructor.name}: delaying configuration of lifeline associations until after Multi Channel Association interview...`,
 				direction: "none",
 			});
 			this.interviewComplete = true;
 			return;
 		}
-
-		// Query each association group for its members
-		await this.refreshValues();
 
 		// And set up lifeline associations
 		await endpoint.configureLifelineAssociations();
@@ -523,12 +525,8 @@ export class AssociationCCRemove extends AssociationCC {
 				);
 			}
 
-			if (options.nodeIds?.some((n) => n < 1 || n > MAX_NODES)) {
-				throw new ZWaveError(
-					`All node IDs must be between 1 and ${MAX_NODES}!`,
-					ZWaveErrorCodes.Argument_Invalid,
-				);
-			}
+			// When removing associations, we allow invalid node IDs.
+			// See GH#3606 - it is possible that those exist.
 			this.groupId = options.groupId;
 			this.nodeIds = options.nodeIds;
 		}

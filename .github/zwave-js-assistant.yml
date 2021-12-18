@@ -37,6 +37,13 @@ stale:
       labels:
         - 'waiting for info ⏳'
       label: 'stale 💤'
+    
+    # Tech support threads get a bit more time
+    - action: label
+      afterDays: 14
+      labels:
+        - 'Tech Support 📞'
+      label: 'stale 💤'
 
     # Only wait 2 days for people who don't fill out issue templates
     - action: label
@@ -66,4 +73,4 @@ approveWorkflow:
     - 'packages/config/config/README.md' # more documentation
   # Careful, whitelisted users have higher precedence than files
   users:
-    - sybohy
+    - dawnho

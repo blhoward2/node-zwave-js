@@ -312,6 +312,28 @@ describe("lib/values/Primitive", () => {
 				expect(encodeBitMask(values, max).length).toBe(expectedLength);
 			}
 		});
+
+		it("should respect the startValue too", () => {
+			const tests = [
+				{
+					values: [2, 4, 8],
+					max: 11,
+					startValue: 2,
+					expected: Buffer.from([0b01000101, 0]),
+				},
+				{
+					values: [0, 2, 10, 11],
+					max: 19,
+					startValue: 0,
+					expected: Buffer.from([0b101, 0b1100, 0]),
+				},
+			];
+			for (const { values, max, startValue, expected } of tests) {
+				expect(encodeBitMask(values, max, startValue)).toEqual(
+					expected,
+				);
+			}
+		});
 	});
 
 	describe("getMinIntegerSize(signed)", () => {
@@ -446,6 +468,13 @@ describe("lib/values/Primitive", () => {
 					partialValue: -2, // same as above, but interpreted as signed
 					bitMask: 0b00_11_0000,
 					expected: 0b11_10_1111,
+				},
+				// Bit shifting with 4-byte values can cause them to get interpreted as signed
+				{
+					fullValue: 0xffff0000,
+					partialValue: 0x0000aaaa,
+					bitMask: 0x0000ffff,
+					expected: 0xffffaaaa,
 				},
 			];
 			for (const {

@@ -1,15 +1,21 @@
 import { JsonlDB, JsonlDBOptions } from "@alcalzone/jsonl-db";
 import * as Sentry from "@sentry/node";
-import { ConfigManager } from "@zwave-js/config";
+import { ConfigManager, externalConfigDir } from "@zwave-js/config";
 import {
 	CommandClasses,
 	deserializeCacheValue,
+	dskFromString,
 	Duration,
 	highResTimestamp,
 	isZWaveError,
 	LogConfig,
+	nwiHomeIdFromDSK,
+	SecurityClass,
+	securityClassIsS2,
 	SecurityManager,
+	SecurityManager2,
 	serializeCacheValue,
+	SPANState,
 	timespan,
 	ValueMetadata,
 	ZWaveError,
@@ -24,6 +30,7 @@ import {
 } from "@zwave-js/serial";
 import {
 	DeepPartial,
+	getErrorMessage,
 	isDocker,
 	mergeDeep,
 	num2hex,
@@ -45,11 +52,16 @@ import SerialPort from "serialport";
 import { URL } from "url";
 import * as util from "util";
 import { interpret } from "xstate";
-import { FirmwareUpdateStatus } from "../commandclass";
+import {
+	FirmwareUpdateStatus,
+	Security2CC,
+	Security2CCNonceReport,
+} from "../commandclass";
 import {
 	assertValidCCs,
 	CommandClass,
 	getImplementedVersion,
+	InvalidCC,
 } from "../commandclass/CommandClass";
 import { DeviceResetLocallyCCNotification } from "../commandclass/DeviceResetLocallyCC";
 import {
@@ -62,6 +74,7 @@ import {
 } from "../commandclass/ICommandClassContainer";
 import { MultiChannelCC } from "../commandclass/MultiChannelCC";
 import { messageIsPing } from "../commandclass/NoOperationCC";
+import { KEXFailType } from "../commandclass/Security2/shared";
 import {
 	SecurityCC,
 	SecurityCCCommandEncapsulationNonceGet,
@@ -90,9 +103,12 @@ import { ApplicationCommandRequest } from "../controller/ApplicationCommandReque
 import {
 	ApplicationUpdateRequest,
 	ApplicationUpdateRequestNodeInfoReceived,
+	ApplicationUpdateRequestSmartStartHomeIDReceived,
 } from "../controller/ApplicationUpdateRequest";
 import { BridgeApplicationCommandRequest } from "../controller/BridgeApplicationCommandRequest";
 import { ZWaveController } from "../controller/Controller";
+import { GetControllerVersionRequest } from "../controller/GetControllerVersionMessages";
+import { InclusionState } from "../controller/Inclusion";
 import {
 	SendDataBridgeRequest,
 	SendDataMulticastBridgeRequest,
@@ -104,10 +120,15 @@ import {
 	SendDataRequest,
 } from "../controller/SendDataMessages";
 import {
+	hasTXReport,
 	isSendData,
 	isSendDataSinglecast,
+	isSendDataTransmitReport,
 	SendDataMessage,
+	TransmitOptions,
+	TXReport,
 } from "../controller/SendDataShared";
+import { SoftResetRequest } from "../controller/SoftResetRequest";
 import { ControllerLogger } from "../log/Controller";
 import { DriverLogger } from "../log/Driver";
 import {
@@ -116,15 +137,18 @@ import {
 	MessageType,
 } from "../message/Constants";
 import { getDefaultPriority, Message } from "../message/Message";
+import { isSuccessIndicator } from "../message/SuccessIndicator";
 import { isNodeQuery } from "../node/INodeQuery";
 import type { ZWaveNode } from "../node/Node";
 import { InterviewStage, NodeStatus } from "../node/Types";
+import type { SerialAPIStartedRequest } from "../serialapi/misc/SerialAPIStartedRequest";
 import { reportMissingDeviceConfig } from "../telemetry/deviceConfig";
 import {
 	AppInfo,
 	compileStatistics,
 	sendStatistics,
 } from "../telemetry/statistics";
+import { createMessageGenerator } from "./MessageGenerators";
 import {
 	createSendThreadMachine,
 	SendThreadInterpreter,
@@ -169,15 +193,19 @@ const defaultOptions: ZWaveOptions = {
 		nonce: 5000,
 		sendDataCallback: 65000, // as defined in INS13954
 		refreshValue: 5000, // Default should handle most slow devices until we have a better solution
+		refreshValueAfterTransition: 1000, // To account for delays in the device
+		serialAPIStarted: 5000,
 	},
 	attempts: {
+		openSerialPort: 10,
 		controller: 3,
 		sendData: 3,
-		retryAfterTransmitReport: false,
 		nodeInterview: 5,
 	},
 	preserveUnknownValues: false,
 	disableOptimisticValueUpdate: false,
+	// By default enable soft reset unless the env variable is set
+	enableSoftReset: !process.env.ZWAVEJS_DISABLE_SOFT_RESET,
 	interview: {
 		skipInterview: false,
 		queryAllUserCodes: false,
@@ -185,6 +213,7 @@ const defaultOptions: ZWaveOptions = {
 	storage: {
 		driver: fsExtra,
 		cacheDir: path.resolve(libraryRootDir, "cache"),
+		lockDir: process.env.ZWAVEJS_LOCK_DIRECTORY,
 		throttle: "normal",
 	},
 	preferences: {
@@ -232,11 +261,45 @@ function checkOptions(options: ZWaveOptions): void {
 			ZWaveErrorCodes.Driver_InvalidOptions,
 		);
 	}
-	if (options.networkKey != undefined && options.networkKey.length !== 16) {
+	if (
+		options.timeouts.serialAPIStarted < 1000 ||
+		options.timeouts.serialAPIStarted > 30000
+	) {
 		throw new ZWaveError(
-			`The network key must be a buffer with length 16!`,
+			`The Serial API started timeout must be between 1000 and 30000 milliseconds!`,
 			ZWaveErrorCodes.Driver_InvalidOptions,
 		);
+	}
+	if (options.securityKeys != undefined) {
+		if (options.networkKey != undefined) {
+			throw new ZWaveError(
+				`The deprecated networkKey option may not be used together with the new securityKeys option!`,
+				ZWaveErrorCodes.Driver_InvalidOptions,
+			);
+		}
+		const keys = Object.entries(options.securityKeys);
+		for (let i = 0; i < keys.length; i++) {
+			const [secClass, key] = keys[i];
+			if (key.length !== 16) {
+				throw new ZWaveError(
+					`The security key for class ${secClass} must be a buffer with length 16!`,
+					ZWaveErrorCodes.Driver_InvalidOptions,
+				);
+			}
+			if (keys.findIndex(([, k]) => k.equals(key)) !== i) {
+				throw new ZWaveError(
+					`The security key for class ${secClass} was used multiple times!`,
+					ZWaveErrorCodes.Driver_InvalidOptions,
+				);
+			}
+		}
+	} else if (options.networkKey != undefined) {
+		if (options.networkKey.length !== 16) {
+			throw new ZWaveError(
+				`The network key must be a buffer with length 16!`,
+				ZWaveErrorCodes.Driver_InvalidOptions,
+			);
+		}
 	}
 	if (options.attempts.controller < 1 || options.attempts.controller > 3) {
 		throw new ZWaveError(
@@ -276,6 +339,12 @@ interface RequestHandlerEntry<T extends Message = Message> {
 	oneTime: boolean;
 }
 
+interface AwaitedMessageEntry {
+	promise: DeferredPromise<Message>;
+	timeout?: NodeJS.Timeout;
+	predicate: (msg: Message) => boolean;
+}
+
 interface AwaitedCommandEntry {
 	promise: DeferredPromise<CommandClass>;
 	timeout?: NodeJS.Timeout;
@@ -300,11 +369,27 @@ export interface SendMessageOptions {
 	 * @internal
 	 */
 	tag?: any;
+	/**
+	 * Whether the send thread MUST be paused after this message was handled
+	 * @internal
+	 */
+	pauseSendThread?: boolean;
+	/** If a Wake Up On Demand should be requested for the target node. */
+	requestWakeUpOnDemand?: boolean;
+	/**
+	 * When a message sent to a node results in a TX report to be received, this callback will be called.
+	 * For multi-stage messages, the callback may be called multiple times.
+	 */
+	onTXReport?: (report: TXReport) => void;
 }
 
 export interface SendCommandOptions extends SendMessageOptions {
 	/** How many times the driver should try to send the message. Defaults to the configured Driver option */
 	maxSendAttempts?: number;
+	/** Whether the driver should automatically handle the encapsulation. Default: true */
+	autoEncapsulate?: boolean;
+	/** Overwrite the default transmit options */
+	transmitOptions?: TransmitOptions;
 }
 
 export type SupervisionUpdateHandler = (
@@ -351,81 +436,6 @@ export type DriverEvents = Extract<keyof DriverEventCallbacks, string>;
  * instance or its associated nodes.
  */
 export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
-	/** The serial port instance */
-	private serial: ZWaveSerialPortBase | undefined;
-	/** An instance of the Send Thread state machine */
-	private sendThread: SendThreadInterpreter;
-
-	/** A map of handlers for all sorts of requests */
-	private requestHandlers = new Map<FunctionType, RequestHandlerEntry[]>();
-	/** A map of awaited commands */
-	private awaitedCommands: AwaitedCommandEntry[] = [];
-
-	/** A map of Node ID -> ongoing sessions */
-	private nodeSessions = new Map<number, Sessions>();
-	private ensureNodeSessions(nodeId: number): Sessions {
-		if (!this.nodeSessions.has(nodeId)) {
-			this.nodeSessions.set(nodeId, {
-				transportService: new Map(),
-				supervision: new Map(),
-			});
-		}
-		return this.nodeSessions.get(nodeId)!;
-	}
-
-	public readonly cacheDir: string;
-
-	private _valueDB: JsonlDB | undefined;
-	/** @internal */
-	public get valueDB(): JsonlDB | undefined {
-		return this._valueDB;
-	}
-	private _metadataDB: JsonlDB<ValueMetadata> | undefined;
-	/** @internal */
-	public get metadataDB(): JsonlDB<ValueMetadata> | undefined {
-		return this._metadataDB;
-	}
-
-	public readonly configManager: ConfigManager;
-	public get configVersion(): string {
-		return (
-			this.configManager?.configVersion ??
-			packageJson?.dependencies?.["@zwave-js/config"] ??
-			libVersion
-		);
-	}
-
-	private _logContainer: ZWaveLogContainer;
-	private _driverLog: DriverLogger;
-	/** @internal */
-	public get driverLog(): DriverLogger {
-		return this._driverLog;
-	}
-
-	private _controllerLog: ControllerLogger;
-	/** @internal */
-	public get controllerLog(): ControllerLogger {
-		return this._controllerLog;
-	}
-
-	private _controller: ZWaveController | undefined;
-	/** Encapsulates information about the Z-Wave controller and provides access to its nodes */
-	public get controller(): ZWaveController {
-		if (this._controller == undefined) {
-			throw new ZWaveError(
-				"The controller is not yet ready!",
-				ZWaveErrorCodes.Driver_NotReady,
-			);
-		}
-		return this._controller;
-	}
-
-	private _securityManager: SecurityManager | undefined;
-	/** @internal */
-	public get securityManager(): SecurityManager | undefined {
-		return this._securityManager;
-	}
-
 	public constructor(
 		private port: string,
 		options?: DeepPartial<ZWaveOptions>,
@@ -437,12 +447,6 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		// And make sure they contain valid values
 		checkOptions(this.options);
 
-		// register some cleanup handlers in case the program doesn't get closed cleanly
-		this._cleanupHandler = this._cleanupHandler.bind(this);
-		process.on("exit", this._cleanupHandler);
-		process.on("SIGINT", this._cleanupHandler);
-		process.on("uncaughtException", this._cleanupHandler);
-
 		// Initialize logging
 		this._logContainer = new ZWaveLogContainer(this.options.logConfig);
 		this._driverLog = new DriverLogger(this._logContainer);
@@ -450,6 +454,8 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 
 		// Initialize the cache
 		this.cacheDir = this.options.storage.cacheDir;
+
+		// TODO: Load provisioning list
 
 		// Initialize config manager
 		this.configManager = new ConfigManager({
@@ -528,10 +534,25 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 					if (this.isMissingNodeACK(transaction, error)) {
 						if (this.handleMissingNodeACK(transaction)) return;
 					}
-					transaction.promise.reject(error);
+
+					// If the transaction was already started, we need to throw the error into the message generator
+					// so it correctly gets ended. Otherwise just reject the result promise
+					if (transaction.parts.self) {
+						// eslint-disable-next-line @typescript-eslint/no-empty-function
+						transaction.parts.self.throw(error).catch(() => {});
+					} else {
+						transaction.promise.reject(error);
+					}
 				},
 				resolveTransaction: (transaction, result) => {
-					transaction.promise.resolve(result);
+					// If the transaction was already started, we need to end the message generator early by throwing
+					// the result. Otherwise just resolve the result promise
+					if (transaction.parts.self) {
+						// eslint-disable-next-line @typescript-eslint/no-empty-function
+						transaction.parts.self.throw(result).catch(() => {});
+					} else {
+						transaction.promise.resolve(result);
+					}
 				},
 				logOutgoingMessage: (msg: Message) => {
 					this.driverLog.logMessage(msg, {
@@ -555,6 +576,7 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 					}
 				},
 				log: this.driverLog.print.bind(this.driverLog),
+				logQueue: this.driverLog.sendQueue.bind(this.driverLog),
 			},
 			pick(this.options, ["timeouts", "attempts"]),
 		);
@@ -562,10 +584,106 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		// this.sendThread.onTransition((state) => {
 		// 	if (state.changed)
 		// 		this.driverLog.print(
-		// 			`send thread state: ${state.toStrings().slice(-1)[0]}`,
+		// 			`send thread state: ${state.toStrings().join("->")}`,
 		// 			"verbose",
 		// 		);
 		// });
+		// this.sendThread.onEvent((evt) => {
+		// 	if (evt.type === "forward") {
+		// 		this.driverLog.print(
+		// 			// @ts-ignore
+		// 			`forwarding event: ${evt.payload.type} from ${evt.from} to ${evt.to}`,
+		// 			"verbose",
+		// 		);
+		// 	} else {
+		// 		this.driverLog.print(
+		// 			`send thread event: ${evt.type}`,
+		// 			"verbose",
+		// 		);
+		// 	}
+		// });
+	}
+	/** The serial port instance */
+	private serial: ZWaveSerialPortBase | undefined;
+	/** An instance of the Send Thread state machine */
+	private sendThread: SendThreadInterpreter;
+
+	/** A map of handlers for all sorts of requests */
+	private requestHandlers = new Map<FunctionType, RequestHandlerEntry[]>();
+	/** A map of awaited messages */
+	private awaitedMessages: AwaitedMessageEntry[] = [];
+	/** A map of awaited commands */
+	private awaitedCommands: AwaitedCommandEntry[] = [];
+
+	/** A map of Node ID -> ongoing sessions */
+	private nodeSessions = new Map<number, Sessions>();
+	private ensureNodeSessions(nodeId: number): Sessions {
+		if (!this.nodeSessions.has(nodeId)) {
+			this.nodeSessions.set(nodeId, {
+				transportService: new Map(),
+				supervision: new Map(),
+			});
+		}
+		return this.nodeSessions.get(nodeId)!;
+	}
+
+	public readonly cacheDir: string;
+
+	private _valueDB: JsonlDB | undefined;
+	/** @internal */
+	public get valueDB(): JsonlDB | undefined {
+		return this._valueDB;
+	}
+	private _metadataDB: JsonlDB<ValueMetadata> | undefined;
+	/** @internal */
+	public get metadataDB(): JsonlDB<ValueMetadata> | undefined {
+		return this._metadataDB;
+	}
+
+	public readonly configManager: ConfigManager;
+	public get configVersion(): string {
+		return (
+			this.configManager?.configVersion ??
+			packageJson?.dependencies?.["@zwave-js/config"] ??
+			libVersion
+		);
+	}
+
+	private _logContainer: ZWaveLogContainer;
+	private _driverLog: DriverLogger;
+	/** @internal */
+	public get driverLog(): DriverLogger {
+		return this._driverLog;
+	}
+
+	private _controllerLog: ControllerLogger;
+	/** @internal */
+	public get controllerLog(): ControllerLogger {
+		return this._controllerLog;
+	}
+
+	private _controller: ZWaveController | undefined;
+	/** Encapsulates information about the Z-Wave controller and provides access to its nodes */
+	public get controller(): ZWaveController {
+		if (this._controller == undefined) {
+			throw new ZWaveError(
+				"The controller is not yet ready!",
+				ZWaveErrorCodes.Driver_NotReady,
+			);
+		}
+		return this._controller;
+	}
+
+	private _securityManager: SecurityManager | undefined;
+	/** @internal */
+	public get securityManager(): SecurityManager | undefined {
+		return this._securityManager;
+	}
+
+	private _securityManager2: SecurityManager2 | undefined;
+	/** @internal */
+	public get securityManager2(): SecurityManager2 | undefined {
+		return this._securityManager2;
 	}
 
 	/** Updates the logging configuration without having to restart the driver. */
@@ -648,15 +766,23 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		this.serial
 			.on("data", this.serialport_onData.bind(this))
 			.on("error", (err) => {
-				this.driverLog.print(
-					`Serial port errored: ${err.message}`,
-					"error",
-				);
-				if (this._isOpen) {
-					this.serialport_onError(err);
-				} else {
-					spOpenPromise.reject(err);
+				if (this.isSoftResetting && !this.serial?.isOpen) {
+					// A disconnection while soft resetting is to be expected
+					return;
+				} else if (!this._isOpen) {
+					// tryOpenSerialport takes care of error handling
+					return;
 				}
+
+				const message = `Serial port errored: ${err.message}`;
+				this.driverLog.print(message, "error");
+
+				const error = new ZWaveError(
+					message,
+					ZWaveErrorCodes.Driver_Failed,
+				);
+				this.emit("error", error);
+
 				void this.destroy();
 			});
 		// If the port is already open, close it first
@@ -668,31 +794,33 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		// asynchronously open the serial port
 		setImmediate(async () => {
 			try {
-				await this.serial!.open();
+				await this.openSerialport();
 			} catch (e) {
-				const message = `Failed to open the serial port: ${e.message}`;
-				this.driverLog.print(message, "error");
-
-				spOpenPromise.reject(
-					new ZWaveError(message, ZWaveErrorCodes.Driver_Failed),
-				);
+				spOpenPromise.reject(e);
 				void this.destroy();
 				return;
 			}
+
 			this.driverLog.print("serial port opened");
 			this._isOpen = true;
 			spOpenPromise.resolve();
 
+			// Perform initialization sequence
 			await this.writeHeader(MessageHeaders.NAK);
-			// set unref, so stopping the process doesn't need to wait for the 1500ms
-			await wait(1500, true);
+			// Per the specs, this should be followed by a soft-reset but we need to be able
+			// to handle sticks that don't support the soft reset command. Therefore we do it
+			// after opening the value DBs
 
 			// Try to create the cache directory. This can fail, in which case we should expose a good error message
 			try {
 				await this.options.storage.driver.ensureDir(this.cacheDir);
 			} catch (e) {
 				let message: string;
-				if (/\.yarn[/\\]cache[/\\]zwave-js/i.test(e.stack)) {
+				if (
+					/\.yarn[/\\]cache[/\\]zwave-js/i.test(
+						getErrorMessage(e, true),
+					)
+				) {
 					message = `Failed to create the cache directory. When using Yarn PnP, you need to change the location with the "storage.cacheDir" driver option.`;
 				} else {
 					message = `Failed to create the cache directory. Please make sure that it is writable or change the location with the "storage.cacheDir" driver option.`;
@@ -711,7 +839,9 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			try {
 				await this.configManager.loadAll();
 			} catch (e) {
-				const message = `Failed to load the configuration: ${e.message}`;
+				const message = `Failed to load the configuration: ${getErrorMessage(
+					e,
+				)}`;
 				this.driverLog.print(message, "error");
 				this.emit(
 					"error",
@@ -724,7 +854,7 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			this.driverLog.print("beginning interview...");
 			try {
 				await this.initializeControllerAndNodes();
-			} catch (e: unknown) {
+			} catch (e) {
 				let message: string;
 				if (
 					isZWaveError(e) &&
@@ -732,9 +862,10 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 				) {
 					message = `Failed to initialize the driver, no response from the controller. Are you sure this is a Z-Wave controller?`;
 				} else {
-					message = `Failed to initialize the driver: ${
-						e instanceof Error ? e.message : String(e)
-					}`;
+					message = `Failed to initialize the driver: ${getErrorMessage(
+						e,
+						true,
+					)}`;
 				}
 				this.driverLog.print(message, "error");
 				this.emit(
@@ -753,9 +884,72 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 	private _nodesReady = new Set<number>();
 	private _nodesReadyEventEmitted: boolean = false;
 
+	private async openSerialport(): Promise<void> {
+		let lastError: unknown;
+		// After a reset, the serial port may need a few seconds until we can open it - try a few times
+		for (
+			let attempt = 1;
+			attempt <= this.options.attempts.openSerialPort;
+			attempt++
+		) {
+			try {
+				await this.serial!.open();
+				return;
+			} catch (e) {
+				lastError = e;
+			}
+			if (attempt < this.options.attempts.openSerialPort) {
+				await wait(1000);
+			}
+		}
+
+		const message = `Failed to open the serial port: ${getErrorMessage(
+			lastError,
+		)}`;
+		this.driverLog.print(message, "error");
+
+		throw new ZWaveError(message, ZWaveErrorCodes.Driver_Failed);
+	}
+
 	/** Indicates whether all nodes are ready, i.e. the "all nodes ready" event has been emitted */
 	public get allNodesReady(): boolean {
 		return this._nodesReadyEventEmitted;
+	}
+
+	private async initValueDBs(homeId: number): Promise<void> {
+		// Always start the value and metadata databases
+		const options: JsonlDBOptions<any> = {
+			ignoreReadErrors: true,
+			...throttlePresets[this.options.storage.throttle],
+		};
+		if (this.options.storage.lockDir) {
+			options.lockfileDirectory = this.options.storage.lockDir;
+		}
+
+		const valueDBFile = path.join(
+			this.cacheDir,
+			`${homeId.toString(16)}.values.jsonl`,
+		);
+		this._valueDB = new JsonlDB(valueDBFile, {
+			...options,
+			reviver: (key, value) => deserializeCacheValue(value),
+			serializer: (key, value) => serializeCacheValue(value),
+		});
+		await this._valueDB.open();
+
+		const metadataDBFile = path.join(
+			this.cacheDir,
+			`${homeId.toString(16)}.metadata.jsonl`,
+		);
+		this._metadataDB = new JsonlDB(metadataDBFile, options);
+		await this._metadataDB.open();
+
+		if (process.env.NO_CACHE === "true") {
+			// Since value/metadata DBs are append-only, we need to clear them
+			// if the cache should be ignored
+			this._valueDB.clear();
+			this._metadataDB.clear();
+		}
 	}
 
 	/**
@@ -770,58 +964,131 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 				.on("node removed", this.onNodeRemoved.bind(this));
 		}
 
-		const initValueDBs = async (): Promise<void> => {
-			// Always start the value and metadata databases
-			const options: JsonlDBOptions<any> = {
-				ignoreReadErrors: true,
-				...throttlePresets[this.options.storage.throttle],
-			};
-
-			const valueDBFile = path.join(
-				this.cacheDir,
-				`${this._controller!.homeId!.toString(16)}.values.jsonl`,
-			);
-			this._valueDB = new JsonlDB(valueDBFile, {
-				...options,
-				reviver: (key, value) => deserializeCacheValue(value),
-				serializer: (key, value) => serializeCacheValue(value),
-			});
-			await this._valueDB.open();
-
-			const metadataDBFile = path.join(
-				this.cacheDir,
-				`${this._controller!.homeId!.toString(16)}.metadata.jsonl`,
-			);
-			this._metadataDB = new JsonlDB(metadataDBFile, options);
-			await this._metadataDB.open();
-
-			if (process.env.NO_CACHE === "true") {
-				// Since value/metadata DBs are append-only, we need to clear them
-				// if the cache should be ignored
-				this._valueDB.clear();
-				this._metadataDB.clear();
-			}
-		};
-
 		if (!this.options.interview.skipInterview) {
+			// Determine controller IDs to open the Value DBs
+			// We need to do this first because some older controllers, especially the UZB1 and
+			// some 500-series sticks in virtualized environments don't respond after a soft reset
+
+			// No need to initialize databases if skipInterview is true, because it is only used in some
+			// Driver unit tests that don't need access to them
+
+			// Identify the controller and determine if it supports soft reset
+			await this.controller.identify();
+
+			if (this.options.enableSoftReset && !(await this.maySoftReset())) {
+				this.driverLog.print(
+					`Soft reset is enabled through config, but this stick does not support it.`,
+					"warn",
+				);
+				this.options.enableSoftReset = false;
+			}
+
+			if (this.options.enableSoftReset) {
+				try {
+					await this.softResetInternal(false);
+				} catch (e) {
+					if (
+						isZWaveError(e) &&
+						e.code === ZWaveErrorCodes.Driver_Failed
+					) {
+						// Remember that soft reset is not supported by this stick
+						await this.rememberNoSoftReset();
+						// Then fail the driver
+						await this.destroy();
+						return;
+					}
+				}
+			}
+
+			// There are situations where a controller claims it has the ID 0,
+			// which isn't valid. In this case try again after having soft-reset the stick
+			if (
+				this.controller.ownNodeId === 0 &&
+				this.options.enableSoftReset
+			) {
+				this.driverLog.print(
+					`Controller identification returned invalid node ID 0 - trying again...`,
+					"warn",
+				);
+				await this.controller.identify();
+			}
+
+			if (this.controller.ownNodeId === 0) {
+				this.driverLog.print(
+					`Controller identification returned invalid node ID 0`,
+					"error",
+				);
+				await this.destroy();
+				return;
+			}
+
+			// now that we know the home ID, we can open the databases
+			await this.initValueDBs(this.controller.homeId!);
+
 			// Interview the controller.
-			await this._controller.interview(initValueDBs, async () => {
+			await this._controller.interview(async () => {
 				// Try to restore the network information from the cache
 				if (process.env.NO_CACHE !== "true") {
 					await this.restoreNetworkStructureFromCache();
 				}
 			});
-			// No need to initialize databases if skipInterview is true, because it is only used in some
-			// Driver unit tests that don't need access to them
+
+			// Auto-enable smart start inclusion
+			this._controller.autoProvisionSmartStart();
 		}
 
-		// We need to know the controller node id to set up the security manager
-		if (this.options.networkKey) {
+		// Set up the S0 security manager. We can only do that after the controller
+		// interview because we need to know the controller node id.
+		const S0Key =
+			this.options.securityKeys?.S0_Legacy ?? this.options.networkKey;
+		if (S0Key) {
+			this.driverLog.print(
+				"Network key for S0 configured, enabling S0 security manager...",
+			);
 			this._securityManager = new SecurityManager({
-				networkKey: this.options.networkKey,
+				networkKey: S0Key,
 				ownNodeId: this._controller.ownNodeId!,
 				nonceTimeout: this.options.timeouts.nonce,
 			});
+		} else {
+			this.driverLog.print(
+				"No network key for S0 configured, communication with secure (S0) devices won't work!",
+				"warn",
+			);
+		}
+
+		// The S2 security manager could be initialized earlier, but we do it here for consistency
+		if (
+			this.options.securityKeys &&
+			// Only set it up if we have security keys for at least one S2 security class
+			Object.keys(this.options.securityKeys).some(
+				(key) =>
+					key.startsWith("S2_") &&
+					key in SecurityClass &&
+					securityClassIsS2((SecurityClass as any)[key]),
+			)
+		) {
+			this.driverLog.print(
+				"At least one network key for S2 configured, enabling S2 security manager...",
+			);
+			this._securityManager2 = new SecurityManager2();
+			// Set up all keys
+			for (const secClass of [
+				"S2_Unauthenticated",
+				"S2_Authenticated",
+				"S2_AccessControl",
+				"S0_Legacy",
+			] as const) {
+				const key = this.options.securityKeys[secClass];
+				if (key) {
+					this._securityManager2.setKey(SecurityClass[secClass], key);
+				}
+			}
+		} else {
+			this.driverLog.print(
+				"No network key for S2 configured, communication with secure (S2) devices won't work!",
+				"warn",
+			);
 		}
 
 		// in any case we need to emit the driver ready event here
@@ -979,7 +1246,7 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 				// eslint-disable-next-line @typescript-eslint/no-empty-function
 				void reportMissingDeviceConfig(node as any).catch(() => {});
 			}
-		} catch (e: unknown) {
+		} catch (e) {
 			if (isZWaveError(e)) {
 				if (
 					e.code === ZWaveErrorCodes.Driver_NotReady ||
@@ -1318,10 +1585,10 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		if (status < FirmwareUpdateStatus.OK_WaitingForActivation) return;
 
 		// Wait at least 5 seconds
-		if (!waitTime) waitTime = 5000;
+		if (!waitTime) waitTime = 5;
 		this.controllerLog.logNode(
 			node.id,
-			`Firmware updated, scheduling interview in ${waitTime} ms...`,
+			`Firmware updated, scheduling interview in ${waitTime} seconds...`,
 		);
 		// We reuse the retryNodeInterviewTimeouts here because they serve a similar purpose
 		this.retryNodeInterviewTimeouts.set(
@@ -1329,22 +1596,35 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			setTimeout(() => {
 				this.retryNodeInterviewTimeouts.delete(node.id);
 				void node.refreshInfo();
-			}, waitTime).unref(),
+			}, waitTime * 1000).unref(),
 		);
 	}
 
 	/** Checks if there are any pending messages for the given node */
 	private hasPendingMessages(node: ZWaveNode): boolean {
 		// First check if there are messages in the queue
-		const { queue, currentTransaction } = this.sendThread.state.context;
 		if (
-			!!queue.find((t) => t.message.getNodeId() === node.id) ||
-			currentTransaction?.message.getNodeId() === node.id
+			this.hasPendingTransactions(
+				(t) => t.message.getNodeId() === node.id,
+			)
 		) {
 			return true;
 		}
+
 		// Then check if there are scheduled polls
 		return node.scheduledPolls.size > 0;
+	}
+
+	/** Checks if there are any pending transactions that match the given predicate */
+	public hasPendingTransactions(
+		predicate: (t: Transaction) => boolean,
+	): boolean {
+		const { queue, activeTransactions } = this.sendThread.state.context;
+		if (!!queue.find((t) => predicate(t))) return true;
+		for (const { transaction } of activeTransactions.values()) {
+			if (predicate(transaction)) return true;
+		}
+		return false;
 	}
 
 	/**
@@ -1411,6 +1691,258 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		}
 	}
 
+	private isSoftResetting: boolean = false;
+
+	private async maySoftReset(): Promise<boolean> {
+		// If we've previously determined a stick not to support soft reset, don't bother trying again
+		let supportsSoftReset: boolean | undefined;
+		if (this._controllerInterviewed) {
+			supportsSoftReset = this.controller.supportsSoftReset;
+		} else {
+			// The controller wasn't interviewed yet, read the json file manually
+			const fs = this.options.storage.driver;
+
+			const cacheFile = path.join(
+				this.cacheDir,
+				this.controller.homeId!.toString(16) + ".json",
+			);
+
+			// Read it if it exists
+			let json;
+			if (await fs.pathExists(cacheFile)) {
+				try {
+					json = JSON.parse(await fs.readFile(cacheFile, "utf8"));
+				} catch {}
+			}
+			supportsSoftReset = json?.controller?.supportsSoftReset;
+		}
+		if (supportsSoftReset === false) return false;
+
+		// Blacklist some sticks that are known to not support soft reset
+		const { manufacturerId, productType, productId } = this.controller;
+
+		// Z-Wave.me UZB1
+		if (
+			manufacturerId === 0x0115 &&
+			productType === 0x0000 &&
+			productId === 0x0000
+		) {
+			return false;
+		}
+
+		// Z-Wave.me UZB
+		if (
+			manufacturerId === 0x0115 &&
+			productType === 0x0400 &&
+			productId === 0x0001
+		) {
+			return false;
+		}
+
+		// Vision Gen5 USB Stick
+		if (
+			manufacturerId === 0x0109 &&
+			productType === 0x1001 &&
+			productId === 0x0201
+			// firmware version 15.1 (GH#3730)
+		) {
+			return false;
+		}
+
+		return true;
+	}
+
+	private async rememberNoSoftReset(): Promise<void> {
+		this.driverLog.print(
+			"Soft reset seems not to be supported by this stick, disabling it.",
+			"warn",
+		);
+		this.controller.supportsSoftReset = false;
+
+		if (this._controllerInterviewed) {
+			// We can use the normal method for this
+			await this.saveNetworkToCacheInternal();
+		} else {
+			// saveNetworkToCache won't write anything, just edit the file "manually"
+
+			// TODO: This is ugly, rework this when changing how the network data is saved
+
+			const fs = this.options.storage.driver;
+
+			await fs.ensureDir(this.cacheDir);
+			const cacheFile = path.join(
+				this.cacheDir,
+				this.controller.homeId!.toString(16) + ".json",
+			);
+
+			// Read it if it exists
+			let json;
+			if (await fs.pathExists(cacheFile)) {
+				try {
+					json = JSON.parse(await fs.readFile(cacheFile, "utf8"));
+				} catch {}
+			}
+
+			// Change the supportsSoftReset flag
+			json ??= {};
+			json.controller ??= {};
+			json.controller.supportsSoftReset = false;
+
+			// And save it again
+			const jsonString = stringify(json);
+			await this.options.storage.driver.writeFile(
+				cacheFile,
+				jsonString,
+				"utf8",
+			);
+		}
+	}
+
+	/**
+	 * Soft-resets the controller if the feature is enabled
+	 */
+	public async trySoftReset(): Promise<void> {
+		if (this.options.enableSoftReset) {
+			await this.softReset();
+		} else {
+			const message = `The soft reset feature is not enabled, skipping API call.`;
+			this.controllerLog.print(message, "warn");
+		}
+	}
+
+	/**
+	 * Instruct the controller to soft-reset.
+	 *
+	 * **Warning:** USB modules will reconnect, meaning that they might get a new address.
+	 *
+	 * **Warning:** This call will throw if soft-reset is not enabled.
+	 */
+	public async softReset(): Promise<void> {
+		if (!this.options.enableSoftReset) {
+			const message = `The soft reset feature has been disabled with a config option or the ZWAVEJS_DISABLE_SOFT_RESET environment variable.`;
+			this.controllerLog.print(message, "error");
+			throw new ZWaveError(
+				message,
+				ZWaveErrorCodes.Driver_FeatureDisabled,
+			);
+		}
+
+		return this.softResetInternal(true);
+	}
+
+	private async softResetInternal(destroyOnError: boolean): Promise<void> {
+		this.controllerLog.print("Performing soft reset...");
+
+		try {
+			this.isSoftResetting = true;
+			await this.sendMessage(new SoftResetRequest(this), {
+				supportCheck: false,
+				pauseSendThread: true,
+			});
+		} catch (e) {
+			this.controllerLog.print(
+				`Soft reset failed: ${getErrorMessage(e)}`,
+				"error",
+			);
+		}
+
+		// Make sure we're able to communicate with the controller again
+		if (!(await this.ensureSerialAPI())) {
+			if (destroyOnError) {
+				await this.destroy();
+			} else {
+				throw new ZWaveError(
+					"The Serial API did not respond after soft-reset",
+					ZWaveErrorCodes.Driver_Failed,
+				);
+			}
+		}
+
+		this.isSoftResetting = false;
+
+		// Resume sending
+		this.unpauseSendThread();
+		// Soft-resetting disables any ongoing inclusion, so we need to reset
+		// the state that is tracked in the controller
+		this._controller?.setInclusionState(InclusionState.Idle);
+	}
+
+	private async ensureSerialAPI(): Promise<boolean> {
+		// Wait 1.5 seconds after reset to ensure that the module is ready for communication again
+		// Z-Wave 700 sticks are relatively fast, so we also wait for the Serial API started command
+		// to bail early
+		this.controllerLog.print("Waiting for the controller to reconnect...");
+		let waitResult = await this.waitForMessage<SerialAPIStartedRequest>(
+			(msg) => msg.functionType === FunctionType.SerialAPIStarted,
+			1500,
+		).catch(() => false as const);
+
+		if (waitResult) {
+			// Serial API did start, maybe do something with the information?
+			this.controllerLog.print("reconnected and restarted");
+			return true;
+		}
+
+		// If the controller disconnected the serial port during the soft reset, we need to re-open it
+		if (!this.serial!.isOpen) {
+			this.controllerLog.print("Re-opening serial port...");
+			try {
+				await this.openSerialport();
+			} catch {
+				return false;
+			}
+		}
+
+		// Wait the configured amount of time for the Serial API started command to be received
+		this.controllerLog.print("Waiting for the Serial API to start...");
+		waitResult = await this.waitForMessage<SerialAPIStartedRequest>(
+			(msg) => msg.functionType === FunctionType.SerialAPIStarted,
+			this.options.timeouts.serialAPIStarted,
+		).catch(() => false as const);
+
+		if (waitResult) {
+			// Serial API did start, maybe do something with the information?
+			this.controllerLog.print("Serial API started");
+			return true;
+		}
+
+		this.controllerLog.print(
+			"Did not receive notification that Serial API has started, checking if it responds...",
+		);
+
+		// We don't need to use any specific command here. However we're going to use this one in the interview
+		// anyways, so we might aswell use it here too
+		const pollController = async () => {
+			try {
+				// And resume sending - this requires us to unpause the send thread
+				this.unpauseSendThread();
+				await this.sendMessage(new GetControllerVersionRequest(this), {
+					supportCheck: false,
+				});
+				this.pauseSendThread();
+				this.controllerLog.print("Serial API responded");
+				return true;
+			} catch {
+				return false;
+			}
+		};
+		// Poll the controller with increasing backoff delay
+		if (await pollController()) return true;
+		for (const backoff of [2, 5, 10, 15]) {
+			this.controllerLog.print(
+				`Serial API did not respond, trying again in ${backoff} seconds...`,
+			);
+			await wait(backoff * 1000);
+			if (await pollController()) return true;
+		}
+
+		this.controllerLog.print(
+			"Serial API did not respond, giving up",
+			"error",
+		);
+		return false;
+	}
+
 	/**
 	 * Performs a hard reset on the controller. This wipes out all configuration!
 	 *
@@ -1468,10 +2000,6 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		);
 	}
 
-	private _cleanupHandler = (): void => {
-		void this.destroy();
-	};
-
 	/**
 	 * Terminates the driver instance and closes the underlying serial connection.
 	 * Must be called under any circumstances.
@@ -1486,6 +2014,8 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		// First stop the send thread machine and close the serial port, so nothing happens anymore
 		if (this.sendThread.initialized) this.sendThread.stop();
 		if (this.serial != undefined) {
+			// Avoid spewing errors if the port was in the middle of receiving something
+			this.serial.removeAllListeners();
 			if (this.serial.isOpen) await this.serial.close();
 			this.serial = undefined;
 		}
@@ -1495,7 +2025,7 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			await this.saveNetworkToCacheInternal();
 		} catch (e) {
 			this.driverLog.print(
-				`Saving the network to cache failed: ${e.message}`,
+				`Saving the network to cache failed: ${getErrorMessage(e)}`,
 				"error",
 			);
 		}
@@ -1506,7 +2036,7 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			await this._metadataDB?.close();
 		} catch (e) {
 			this.driverLog.print(
-				`Closing the value DBs failed: ${e.message}`,
+				`Closing the value DBs failed: ${getErrorMessage(e)}`,
 				"error",
 			);
 		}
@@ -1517,6 +2047,8 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			...this.sendNodeToSleepTimers.values(),
 			...this.retryNodeInterviewTimeouts.values(),
 			this.statisticsTimeout,
+			...this.awaitedCommands.map((c) => c.timeout),
+			...this.awaitedMessages.map((m) => m.timeout),
 		]) {
 			if (timeout) clearTimeout(timeout);
 		}
@@ -1524,18 +2056,12 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		// Destroy all nodes
 		this._controller?.nodes.forEach((n) => n.destroy());
 
-		process.removeListener("exit", this._cleanupHandler);
-		process.removeListener("SIGINT", this._cleanupHandler);
-		process.removeListener("uncaughtException", this._cleanupHandler);
+		this.driverLog.print(`driver instance destroyed`);
 
 		// destroy loggers as the very last thing
 		this._logContainer.destroy();
 
 		this._destroyPromise.resolve();
-	}
-
-	private serialport_onError(err: Error): void {
-		this.emit("error", err);
 	}
 
 	/**
@@ -1576,31 +2102,67 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			// Then ensure there are no errors
 			if (isCommandClassContainer(msg)) {
 				assertValidCCs(msg);
-				msg.getNodeUnsafe()?.incrementStatistics("commandsRX");
-			} else {
-				this._controller?.incrementStatistics("messagesRX");
+			}
+			if (!!this._controller) {
+				if (isCommandClassContainer(msg)) {
+					msg.getNodeUnsafe()?.incrementStatistics("commandsRX");
+				} else {
+					this._controller.incrementStatistics("messagesRX");
+				}
 			}
 			// all good, send ACK
 			await this.writeHeader(MessageHeaders.ACK);
-		} catch (e) {
+		} catch (e: any) {
 			try {
-				const response = this.handleDecodeError(e, data, msg);
-				if (response) await this.writeHeader(response);
-				if (isCommandClassContainer(msg)) {
-					msg.getNodeUnsafe()?.incrementStatistics(
-						"commandsDroppedRX",
-					);
+				if (await this.handleSecurityS2DecodeError(e, msg)) {
+					// TODO
 				} else {
-					this._controller?.incrementStatistics("messagesDroppedRX");
+					const response = this.handleDecodeError(e, data, msg);
+					if (response) await this.writeHeader(response);
+					if (!!this._controller) {
+						if (isCommandClassContainer(msg)) {
+							msg.getNodeUnsafe()?.incrementStatistics(
+								"commandsDroppedRX",
+							);
+
+							// Figure out if the command was received with supervision encapsulation
+							const supervisionSessionId =
+								SupervisionCC.getSessionId(msg.command);
+							if (
+								supervisionSessionId !== undefined &&
+								msg.command instanceof InvalidCC
+							) {
+								// If it was, we need to notify the sender that we couldn't decode the command
+								await msg
+									.getNodeUnsafe()
+									?.createAPI(
+										CommandClasses.Supervision,
+										false,
+									)
+									.sendReport({
+										sessionId: supervisionSessionId,
+										moreUpdatesFollow: false,
+										status: SupervisionStatus.NoSupport,
+										secure: msg.command.secure,
+									});
+								return;
+							}
+						} else {
+							this._controller.incrementStatistics(
+								"messagesDroppedRX",
+							);
+						}
+					}
 				}
-			} catch (e) {
-				if (
-					e instanceof Error &&
-					/serial port is not open/.test(e.message)
-				) {
-					this.emit("error", e);
-					void this.destroy();
-					return;
+			} catch (ee) {
+				if (ee instanceof Error) {
+					if (/serial port is not open/.test(ee.message)) {
+						this.emit("error", ee);
+						void this.destroy();
+						return;
+					}
+					// Print something, so we know what is wrong
+					this._driverLog.print(ee.stack ?? ee.message, "error");
 				}
 			}
 			// Don't keep handling the message
@@ -1670,7 +2232,9 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 				}
 			} catch (e) {
 				// We shouldn't throw just because logging a message fails
-				this.driverLog.print(`Logging a message failed: ${e.message}`);
+				this.driverLog.print(
+					`Logging a message failed: ${getErrorMessage(e)}`,
+				);
 			}
 			this.sendThread.send({ type: "message", message: msg });
 		}
@@ -1721,7 +2285,9 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 						} catch (e) {
 							// We shouldn't throw just because logging a message fails
 							this.driverLog.print(
-								`Logging a message failed: ${e.message}`,
+								`Logging a message failed: ${getErrorMessage(
+									e,
+								)}`,
 							);
 						}
 					} else {
@@ -1738,8 +2304,9 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 					return MessageHeaders.ACK;
 
 				case ZWaveErrorCodes.Driver_NoSecurity:
+				case ZWaveErrorCodes.Security2CC_NotInitialized:
 					this.driverLog.print(
-						`Dropping message because network key is not set or the driver is not yet ready to receive secure messages.`,
+						`Dropping message because network keys are not set or the driver is not yet ready to receive secure messages.`,
 						"warn",
 					);
 					return MessageHeaders.ACK;
@@ -1758,6 +2325,110 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 		throw e;
 	}
 
+	private async handleSecurityS2DecodeError(
+		e: Error,
+		msg: Message | undefined,
+	): Promise<boolean> {
+		if (!isZWaveError(e)) return false;
+		if (
+			(e.code === ZWaveErrorCodes.Security2CC_NoSPAN ||
+				e.code === ZWaveErrorCodes.Security2CC_CannotDecode) &&
+			isCommandClassContainer(msg)
+		) {
+			// Decoding the command failed because no SPAN has been established with the other node
+			const nodeId = msg.getNodeId()!;
+			// If the node isn't known, ignore this error
+			const node = this._controller?.nodes.get(nodeId);
+			if (!node) return false;
+
+			// Before we can send anything, ACK the command
+			await this.writeHeader(MessageHeaders.ACK);
+
+			this.driverLog.logMessage(msg, { direction: "inbound" });
+			node.incrementStatistics("commandsDroppedRX");
+
+			// We might receive this before the node has been interviewed. If that case, we need to mark Security S2 as
+			// supported or we won't ever be able to communicate with the node
+			if (node.interviewStage < InterviewStage.NodeInfo) {
+				node.addCC(CommandClasses["Security 2"], {
+					isSupported: true,
+					version: 1,
+				});
+			}
+
+			// Ensure that we're not flooding the queue with unnecessary NonceReports
+			const isS2NonceReport = (t: Transaction) =>
+				t.message.getNodeId() === nodeId &&
+				isCommandClassContainer(t.message) &&
+				t.message.command instanceof Security2CCNonceReport;
+
+			const message: string =
+				e.code === ZWaveErrorCodes.Security2CC_CannotDecode
+					? "Message authentication failed"
+					: "No SPAN is established yet";
+
+			if (this.controller.bootstrappingS2NodeId === nodeId) {
+				// The node is currently being bootstrapped.
+				if (this.securityManager2?.tempKeys.has(nodeId)) {
+					// The DSK has been verified, so we should be able to decode this command.
+					// If this is the first attempt, we need to request a nonce first
+					if (
+						this.securityManager2.getSPANState(nodeId).type ===
+						SPANState.None
+					) {
+						this.controllerLog.logNode(nodeId, {
+							message: `${message}, cannot decode command. Requesting a nonce...`,
+							level: "verbose",
+							direction: "outbound",
+						});
+						// Send the node our nonce
+						node.commandClasses["Security 2"]
+							.sendNonce()
+							.catch(() => {
+								// Ignore errors
+							});
+					} else {
+						// Us repeatedly not being able to decode the command means we need to abort the bootstrapping process
+						// because the PIN is wrong
+						this.controllerLog.logNode(nodeId, {
+							message: `${message}, cannot decode command. Aborting the S2 bootstrapping process...`,
+							level: "error",
+							direction: "inbound",
+						});
+						this.controller.cancelSecureBootstrapS2(
+							KEXFailType.BootstrappingCanceled,
+						);
+					}
+				} else {
+					this.controllerLog.logNode(nodeId, {
+						message: `Ignoring KEXSet because the DSK has not been verified yet`,
+						level: "verbose",
+						direction: "inbound",
+					});
+				}
+			} else if (!this.hasPendingTransactions(isS2NonceReport)) {
+				this.controllerLog.logNode(nodeId, {
+					message: `${message}, cannot decode command. Requesting a nonce...`,
+					level: "verbose",
+					direction: "outbound",
+				});
+				// Send the node our nonce
+				node.commandClasses["Security 2"].sendNonce().catch(() => {
+					// Ignore errors
+				});
+			} else {
+				this.controllerLog.logNode(nodeId, {
+					message: `${message}, cannot decode command.`,
+					level: "verbose",
+					direction: "none",
+				});
+			}
+
+			return true;
+		}
+		return false;
+	}
+
 	/** Checks if a transaction failed because a node didn't respond in time */
 	private isMissingNodeACK(
 		transaction: Transaction,
@@ -1769,17 +2440,16 @@ export class Driver extends TypedEventEmitter<DriverEventCallbacks> {
 			// If the node does not acknowledge our request, it is either asleep or dead
 			e.code === ZWaveErrorCodes.Controller_CallbackNOK &&
 			(transaction.message instanceof SendDataRequest ||
-				transaction.message instanceof SendDataBridgeRequest) &&
-			// Ignore pre-transmit handshakes because the actual transaction will be retried
-			transaction.priority !== MessagePriority.PreTransmitHandshake
+				transaction.message instanceof SendDataBridgeRequest)
 		);
 	}
 
 	/**
+	 * @internal
 	 * Handles the case that a node failed to respond in time.
 	 * Returns `true` if the transaction failure was handled, `false` if it needs to be rejected.
 	 */
-	private handleMissingNodeACK(
+	public handleMissingNodeACK(
 		transaction: Transaction & {
 			message: SendDataRequest | SendDataBridgeRequest;
 		},
@@ -1799,19 +2469,9 @@ It is probably asleep, moving its messages to the wakeup queue.`,
 			);
 			// Mark the node as asleep
 			// The handler for the asleep status will move the messages to the wakeup queue
-			// We need to re-add the current transaction if that is allowed because otherwise it will be dropped silently
-			if (this.mayMoveToWakeupQueue(transaction)) {
-				this.sendThread.send({ type: "add", transaction });
-			} else {
-				transaction.promise.reject(
-					new ZWaveError(
-						`The node is asleep`,
-						ZWaveErrorCodes.Controller_MessageDropped,
-					),
-				);
-			}
+
 			node.markAsAsleep();
-			return true;
+			return this.mayMoveToWakeupQueue(transaction);
 		} else {
 			const errorMsg = `Node ${node.id} did not respond after ${transaction.message.maxSendAttempts} attempts, it is presumed dead`;
 			this.controllerLog.logNode(node.id, errorMsg, "warn");
@@ -1888,7 +2548,7 @@ It is probably asleep, moving its messages to the wakeup queue.`,
 					this.partialCCSessions.delete(partialSessionKey!);
 					try {
 						command.mergePartialCCs(session);
-					} catch (e: unknown) {
+					} catch (e) {
 						if (isZWaveError(e)) {
 							switch (e.code) {
 								case ZWaveErrorCodes.Deserialization_NotImplemented:
@@ -1978,7 +2638,7 @@ It is probably asleep, moving its messages to the wakeup queue.`,
 						});
 						await this.sendCommand(cc, {
 							maxSendAttempts: 1,
-							priority: MessagePriority.Handshake,
+							priority: MessagePriority.Nonce,
 						});
 					},
 					sendSegmentsComplete: async () => {
@@ -1993,7 +2653,7 @@ It is probably asleep, moving its messages to the wakeup queue.`,
 						});
 						await this.sendCommand(cc, {
 							maxSendAttempts: 1,
-							priority: MessagePriority.Handshake,
+							priority: MessagePriority.Nonce,
 						});
 					},
 				},
@@ -2042,7 +2702,7 @@ It is probably asleep, moving its messages to the wakeup queue.`,
 				});
 				await this.sendCommand(cc, {
 					maxSendAttempts: 1,
-					priority: MessagePriority.Handshake,
+					priority: MessagePriority.Nonce,
 				});
 			}
 		}
@@ -2144,14 +2804,23 @@ ${handlers.length} left`,
 		// A controlling node MUST discard a received Report/Notification type command if it is
 		// not received using S0 encapsulation and the corresponding Command Class is supported securely only
 
-		if (cc.secure && cc.ccId !== CommandClasses.Security) {
+		if (
+			cc.secure &&
+			cc.ccId !== CommandClasses.Security &&
+			cc.ccId !== CommandClasses["Security 2"]
+		) {
 			const commandName = cc.constructor.name;
 			if (
 				commandName.endsWith("Report") ||
 				commandName.endsWith("Notification")
 			) {
-				// Check whether there was a S0 encapsulation
-				if (cc.isEncapsulatedWith(CommandClasses.Security)) return true;
+				// Check whether there was a security encapsulation
+				if (
+					cc.isEncapsulatedWith(CommandClasses.Security) ||
+					cc.isEncapsulatedWith(CommandClasses["Security 2"])
+				) {
+					return true;
+				}
 				// none found, don't accept the CC
 				this.controllerLog.logNode(
 					cc.nodeId as number,
@@ -2170,9 +2839,6 @@ ${handlers.length} left`,
 	private async handleRequest(msg: Message): Promise<void> {
 		let handlers: RequestHandlerEntry[] | undefined;
 
-		// For further actions, we are only interested in the innermost CC
-		if (isCommandClassContainer(msg)) this.unwrapCommands(msg);
-
 		if (isNodeQuery(msg) || isCommandClassContainer(msg)) {
 			const node = msg.getNodeUnsafe();
 			if (node) {
@@ -2183,7 +2849,19 @@ ${handlers.length} left`,
 			}
 		}
 
+		// Check if we have a dynamic handler waiting for this message
+		for (const entry of this.awaitedMessages) {
+			if (entry.predicate(msg)) {
+				// resolve the promise - this will remove the entry from the list
+				entry.promise.resolve(msg);
+				return;
+			}
+		}
+
 		if (isCommandClassContainer(msg)) {
+			// For further actions, we are only interested in the innermost CC
+			this.unwrapCommands(msg);
+
 			const node = msg.getNodeUnsafe();
 			// If we receive an encrypted message but assume the node is insecure, change our assumption
 			if (
@@ -2191,7 +2869,7 @@ ${handlers.length} left`,
 				(msg.command.ccId === CommandClasses.Security ||
 					msg.command.isEncapsulatedWith(CommandClasses.Security))
 			) {
-				node.isSecure = true;
+				node.securityClasses.set(SecurityClass.S0_Legacy, true);
 				// Force a new interview
 				void node.refreshInfo();
 			}
@@ -2199,6 +2877,8 @@ ${handlers.length} left`,
 			// Check if we may even handle the command
 			if (!this.mayHandleUnsolicitedCommand(msg.command)) return;
 		}
+
+		// Otherwise go through the static handlers
 
 		if (
 			msg instanceof ApplicationCommandRequest ||
@@ -2237,7 +2917,9 @@ ${handlers.length} left`,
 					await this.controller.removeFailedNode(msg.command.nodeId);
 				} catch (e) {
 					this.controllerLog.logNode(msg.command.nodeId, {
-						message: `removing the node failed: ${e}`,
+						message: `removing the node failed: ${getErrorMessage(
+							e,
+						)}`,
 						level: "error",
 					});
 				}
@@ -2262,16 +2944,66 @@ ${handlers.length} left`,
 					nodeSessions.supervision.delete(msg.command.sessionId);
 				}
 			} else {
+				// Figure out if the command was received with supervision encapsulation
+				const supervisionSessionId = SupervisionCC.getSessionId(
+					msg.command,
+				);
+				const secure = msg.command.secure;
+
+				// DO NOT force-add support for the Supervision CC here. Some devices only support Supervision when sending,
+				// so we need to trust the information we already have.
+
 				// check if someone is waiting for this command
 				for (const entry of this.awaitedCommands) {
 					if (entry.predicate(msg.command)) {
 						// resolve the promise - this will remove the entry from the list
 						entry.promise.resolve(msg.command);
+
+						// send back a Supervision Report if the command was received via Supervision Get
+						if (supervisionSessionId !== undefined) {
+							await node
+								.createAPI(CommandClasses.Supervision, false)
+								.sendReport({
+									sessionId: supervisionSessionId,
+									moreUpdatesFollow: false,
+									status: SupervisionStatus.Success,
+									secure,
+								});
+						}
 						return;
 					}
 				}
-				// noone is waiting, dispatch the command to the node itself
-				await node.handleCommand(msg.command);
+
+				// No one is waiting, dispatch the command to the node itself
+				if (supervisionSessionId !== undefined) {
+					// Wrap the handleCommand in try-catch so we can notify the node that we weren't able to handle the command
+					try {
+						await node.handleCommand(msg.command);
+
+						await node
+							.createAPI(CommandClasses.Supervision, false)
+							.sendReport({
+								sessionId: supervisionSessionId,
+								moreUpdatesFollow: false,
+								status: SupervisionStatus.Success,
+								secure,
+							});
+					} catch (e) {
+						await node
+							.createAPI(CommandClasses.Supervision, false)
+							.sendReport({
+								sessionId: supervisionSessionId,
+								moreUpdatesFollow: false,
+								status: SupervisionStatus.Fail,
+								secure,
+							});
+
+						// In any case we don't want to swallow the error
+						throw e;
+					}
+				} else {
+					await node.handleCommand(msg.command);
+				}
 			}
 
 			return;
@@ -2297,6 +3029,60 @@ ${handlers.length} left`,
 					}
 
 					return;
+				}
+			} else if (
+				msg instanceof ApplicationUpdateRequestSmartStartHomeIDReceived
+			) {
+				// the controller is in Smart Start learn mode and a node requests inclusion via Smart Start
+				this.controllerLog.print(
+					"Received Smart Start inclusion request",
+				);
+
+				if (
+					this.controller.inclusionState !== InclusionState.Idle &&
+					this.controller.inclusionState !== InclusionState.SmartStart
+				) {
+					this.controllerLog.print(
+						"Controller is busy and cannot handle this inclusion request right now...",
+					);
+					return;
+				}
+
+				// Check if the node is on the provisioning list
+				const provisioningEntry = this.controller.provisioningList.find(
+					(entry) =>
+						nwiHomeIdFromDSK(dskFromString(entry.dsk)).equals(
+							msg.nwiHomeId,
+						),
+				);
+				if (!provisioningEntry) {
+					this.controllerLog.print(
+						"NWI Home ID not found in provisioning list, ignoring request...",
+					);
+					return;
+				}
+
+				this.controllerLog.print(
+					"NWI Home ID found in provisioning list, including node...",
+				);
+				try {
+					const result =
+						await this.controller.beginInclusionSmartStart(
+							provisioningEntry,
+						);
+					if (!result) {
+						this.controllerLog.print(
+							"Smart Start inclusion could not be started",
+							"error",
+						);
+					}
+				} catch (e) {
+					this.controllerLog.print(
+						`Smart Start inclusion could not be started: ${getErrorMessage(
+							e,
+						)}`,
+						"error",
+					);
 				}
 			}
 		} else {
@@ -2378,12 +3164,28 @@ ${handlers.length} left`,
 		}
 
 		// 5.
+
+		// When a node supports S2 and has a valid security class, the command
+		// must be S2-encapsulated
+		const node = msg.command.getNode();
+		if (node?.supportsCC(CommandClasses["Security 2"])) {
+			const securityClass = node.getHighestSecurityClass();
+			if (
+				((securityClass != undefined &&
+					securityClass !== SecurityClass.S0_Legacy) ||
+					this.securityManager2?.tempKeys.has(node.id)) &&
+				Security2CC.requiresEncapsulation(msg.command)
+			) {
+				msg.command = Security2CC.encapsulate(this, msg.command);
+			}
+		}
+		// This check will return false for S2-encapsulated commands
 		if (SecurityCC.requiresEncapsulation(msg.command)) {
 			msg.command = SecurityCC.encapsulate(this, msg.command);
 		}
 	}
 
-	private unwrapCommands(msg: Message & ICommandClassContainer): void {
+	public unwrapCommands(msg: Message & ICommandClassContainer): void {
 		// Unwrap encapsulating CCs until we get to the core
 		while (
 			isEncapsulatingCommandClass(msg.command) ||
@@ -2398,6 +3200,58 @@ ${handlers.length} left`,
 				return;
 			}
 			msg.command = unwrapped;
+		}
+	}
+
+	/**
+	 * Gets called whenever any Serial API command succeeded or a SendData command had a negative callback.
+	 */
+	private handleSerialAPICommandResult(
+		msg: Message,
+		options: SendMessageOptions,
+		result: Message | undefined,
+	): void {
+		// Update statistics
+		const node = msg.getNodeUnsafe();
+		let success = true;
+		if (isSendData(msg)) {
+			// This shouldn't happen, but just in case
+			if (!node) return;
+
+			if (isSendDataTransmitReport(result)) {
+				if (!result.isOK()) {
+					success = false;
+					node.incrementStatistics("commandsDroppedTX");
+				} else {
+					node.incrementStatistics("commandsTX");
+				}
+
+				// Notify listeners about the status report
+				if (hasTXReport(result)) {
+					options.onTXReport?.(result.txReport);
+					// TODO: Update statistics based on the TX report
+				}
+			}
+		} else {
+			this._controller?.incrementStatistics("messagesTX");
+		}
+
+		// Track and potentially update the status of the node when communication succeeds
+		if (node && success) {
+			if (node.canSleep) {
+				// Do not update the node status when we just responded to a nonce request
+				if (options.priority !== MessagePriority.Nonce) {
+					// If the node is not meant to be kept awake, try to send it back to sleep
+					if (!node.keepAwake) {
+						setImmediate(() => this.debounceSendNodeToSleep(node));
+					}
+					// The node must be awake because it answered
+					node.markAsAwake();
+				}
+			} else if (node.status !== NodeStatus.Alive) {
+				// The node status was unknown or dead - in either case it must be alive because it answered
+				node.markAsAlive();
+			}
 		}
 	}
 
@@ -2471,9 +3325,8 @@ ${handlers.length} left`,
 			// that there is ever a points where all targets are awake
 			!(msg instanceof SendDataMulticastRequest) &&
 			!(msg instanceof SendDataMulticastBridgeRequest) &&
-			// Handshake messages are meant to be sent immediately
-			options.priority !== MessagePriority.Handshake &&
-			options.priority !== MessagePriority.PreTransmitHandshake
+			// Nonces have to be sent immediately
+			options.priority !== MessagePriority.Nonce
 		) {
 			if (options.priority === MessagePriority.NodeQuery) {
 				// Remember that this transaction was part of an interview
@@ -2482,22 +3335,33 @@ ${handlers.length} left`,
 			options.priority = MessagePriority.WakeUp;
 		}
 
-		// create the transaction and enqueue it
-		const promise = createDeferredPromise<TResponse>();
-		const transaction = new Transaction(
+		// Create the transaction
+		const { generator, resultPromise } = createMessageGenerator(
 			this,
 			msg,
-			promise,
-			options.priority,
+			(msg, _result) => {
+				this.handleSerialAPICommandResult(msg, options, _result);
+			},
 		);
+		const transaction = new Transaction(this, {
+			message: msg,
+			priority: options.priority,
+			parts: generator,
+			promise: resultPromise,
+		});
 
+		// Configure its options
 		if (options.changeNodeStatusOnMissingACK != undefined) {
 			transaction.changeNodeStatusOnTimeout =
 				options.changeNodeStatusOnMissingACK;
 		}
+		if (options.pauseSendThread === true) {
+			transaction.pauseSendThread = true;
+		}
+		transaction.requestWakeUpOnDemand = !!options.requestWakeUpOnDemand;
 		transaction.tag = options.tag;
 
-		// start sending now (maybe)
+		// And queue it
 		this.sendThread.send({ type: "add", transaction });
 
 		// If the transaction should expire, start the timeout
@@ -2520,33 +3384,37 @@ ${handlers.length} left`,
 		}
 
 		try {
-			const ret = await promise;
-			// The message was transmitted, so it can no longer expire
-			if (expirationTimeout) clearTimeout(expirationTimeout);
-			// Update statistics
+			const result = (await resultPromise) as TResponse;
+
+			// If this was a successful non-nonce message to a sleeping node, make sure it goes to sleep again
+			let maybeSendToSleep: boolean;
 			if (isSendData(msg)) {
-				node?.incrementStatistics("commandsTX");
+				// For SendData messages, make sure the message is not a nonce
+				maybeSendToSleep =
+					options.priority !== MessagePriority.Nonce &&
+					// And that the result is either a response from the node
+					// or a transmit report indicating success
+					result &&
+					(result.functionType ===
+						FunctionType.BridgeApplicationCommand ||
+						result.functionType ===
+							FunctionType.ApplicationCommand ||
+						(isSendDataTransmitReport(result) && result.isOK()));
 			} else {
-				this._controller?.incrementStatistics("messagesTX");
+				// For other messages to the node, just check for successful completion. If the callback is not OK,
+				// we might not be able to communicate with the node. Sending another message is not a good idea.
+				maybeSendToSleep =
+					isNodeQuery(msg) &&
+					result &&
+					isSuccessIndicator(result) &&
+					result.isOK();
 			}
-			// Track and potentially update the status of the node when communication succeeds
-			if (node) {
-				if (node.canSleep) {
-					// Do not update the node status when we just responded to a nonce request
-					if (options.priority !== MessagePriority.Handshake) {
-						// If the node is not meant to be kept awake, try to send it back to sleep
-						if (!node.keepAwake) {
-							this.debounceSendNodeToSleep(node);
-						}
-						// The node must be awake because it answered
-						node.markAsAwake();
-					}
-				} else if (node.status !== NodeStatus.Alive) {
-					// The node status was unknown or dead - in either case it must be alive because it answered
-					node.markAsAlive();
-				}
+
+			if (maybeSendToSleep && node && node.canSleep && !node.keepAwake) {
+				setImmediate(() => this.debounceSendNodeToSleep(node!));
 			}
-			return ret;
+
+			return result;
 		} catch (e) {
 			if (isZWaveError(e)) {
 				if (
@@ -2567,21 +3435,31 @@ ${handlers.length} left`,
 					// If the node failed to respond in time, remember this for the statistics
 					node?.incrementStatistics("timeoutResponse");
 				}
+				// Enrich errors with the transaction's stack instead of the internal stack
+				if (!e.transactionSource) {
+					throw new ZWaveError(
+						e.message,
+						e.code,
+						e.context,
+						transaction.stack,
+					);
+				}
 			}
 			throw e;
+		} finally {
+			// The transaction was handled, so it can no longer expire
+			if (expirationTimeout) clearTimeout(expirationTimeout);
 		}
 	}
 
-	/**
-	 * Sends a command to a Z-Wave node. If the node returns a command in response, that command will be the return value.
-	 * If the command expects no response **or** the response times out, nothing will be returned
-	 * @param command The command to send. It will be encapsulated in a SendData[Multicast]Request.
-	 * @param options (optional) Options regarding the message transmission
-	 */
-	public async sendCommand<TResponse extends CommandClass = CommandClass>(
+	/** Wraps a CC in the correct SendData message to use for sending */
+	public createSendDataMessage(
 		command: CommandClass,
-		options: SendCommandOptions = {},
-	): Promise<TResponse | undefined> {
+		options: Pick<
+			SendCommandOptions,
+			"autoEncapsulate" | "maxSendAttempts" | "transmitOptions"
+		> = {},
+	): SendDataMessage {
 		let msg: SendDataMessage;
 		if (command.isSinglecast()) {
 			if (
@@ -2594,7 +3472,9 @@ ${handlers.length} left`,
 			}
 		} else if (command.isMulticast()) {
 			if (
-				this.controller.isFunctionSupported(FunctionType.SendDataBridge)
+				this.controller.isFunctionSupported(
+					FunctionType.SendDataMulticastBridge,
+				)
 			) {
 				// Prioritize Bridge commands when they are supported
 				msg = new SendDataMulticastBridgeRequest(this, { command });
@@ -2612,9 +3492,32 @@ ${handlers.length} left`,
 			msg.maxSendAttempts = options.maxSendAttempts;
 		}
 
-		// Automatically encapsulate commands before sending
-		this.encapsulateCommands(msg);
+		// Specify transmit options for the request
+		if (options.transmitOptions != undefined) {
+			msg.transmitOptions = options.transmitOptions;
+			if (!(options.transmitOptions & TransmitOptions.ACK)) {
+				// If no ACK is requested, set the callback ID to zero, because we won't get a controller callback
+				msg.callbackId = 0;
+			}
+		}
 
+		// Automatically encapsulate commands before sending
+		if (options.autoEncapsulate !== false) this.encapsulateCommands(msg);
+
+		return msg;
+	}
+
+	/**
+	 * Sends a command to a Z-Wave node. If the node returns a command in response, that command will be the return value.
+	 * If the command expects no response **or** the response times out, nothing will be returned
+	 * @param command The command to send. It will be encapsulated in a SendData[Multicast]Request.
+	 * @param options (optional) Options regarding the message transmission
+	 */
+	public async sendCommand<TResponse extends CommandClass = CommandClass>(
+		command: CommandClass,
+		options: SendCommandOptions = {},
+	): Promise<TResponse | undefined> {
+		const msg = this.createSendDataMessage(command, options);
 		try {
 			const resp = await this.sendMessage(msg, options);
 
@@ -2623,7 +3526,7 @@ ${handlers.length} left`,
 				this.unwrapCommands(resp);
 				return resp.command as TResponse;
 			}
-		} catch (e: unknown) {
+		} catch (e) {
 			// A timeout always has to be expected. In this case return nothing.
 			if (
 				isZWaveError(e) &&
@@ -2730,7 +3633,48 @@ ${handlers.length} left`,
 	}
 
 	/**
-	 * Waits until a command is received or a timeout has elapsed. Returns the received command.
+	 * Waits until an unsolicited serial message is received or a timeout has elapsed. Returns the received message.
+	 *
+	 * **Note:** To wait for a certain CommandClass, better use {@link waitForCommand}.
+	 * @param timeout The number of milliseconds to wait. If the timeout elapses, the returned promise will be rejected
+	 * @param predicate A predicate function to test all incoming messages
+	 */
+	public waitForMessage<T extends Message>(
+		predicate: (msg: Message) => boolean,
+		timeout: number,
+	): Promise<T> {
+		return new Promise<T>((resolve, reject) => {
+			const entry: AwaitedMessageEntry = {
+				predicate,
+				promise: createDeferredPromise<Message>(),
+				timeout: undefined,
+			};
+			this.awaitedMessages.push(entry);
+			const removeEntry = () => {
+				if (entry.timeout) clearTimeout(entry.timeout);
+				const index = this.awaitedMessages.indexOf(entry);
+				if (index !== -1) this.awaitedMessages.splice(index, 1);
+			};
+			// When the timeout elapses, remove the wait entry and reject the returned Promise
+			entry.timeout = setTimeout(() => {
+				removeEntry();
+				reject(
+					new ZWaveError(
+						`Received no matching message within the provided timeout!`,
+						ZWaveErrorCodes.Controller_Timeout,
+					),
+				);
+			}, timeout);
+			// When the promise is resolved, remove the wait entry and resolve the returned Promise
+			void entry.promise.then((cc) => {
+				removeEntry();
+				resolve(cc as T);
+			});
+		});
+	}
+
+	/**
+	 * Waits until a CommandClass is received or a timeout has elapsed. Returns the received command.
 	 * @param timeout The number of milliseconds to wait. If the timeout elapses, the returned promise will be rejected
 	 * @param predicate A predicate function to test all incoming command classes
 	 */
@@ -2759,7 +3703,7 @@ ${handlers.length} left`,
 						ZWaveErrorCodes.Controller_NodeTimeout,
 					),
 				);
-			}, timeout).unref();
+			}, timeout);
 			// When the promise is resolved, remove the wait entry and resolve the returned Promise
 			void entry.promise.then((cc) => {
 				removeEntry();
@@ -2772,12 +3716,9 @@ ${handlers.length} left`,
 	private mayMoveToWakeupQueue(transaction: Transaction): boolean {
 		const msg = transaction.message;
 		switch (true) {
-			// Pings and handshake responses will block the send queue until wakeup,
-			// so they must be dropped
+			// Pings and nonces will block the send queue until wakeup, so they must be dropped
 			case messageIsPing(msg):
-			case transaction.priority === MessagePriority.Handshake:
-			// Outgoing handshake requests are very likely not valid after wakeup, so drop them too
-			case transaction.priority === MessagePriority.PreTransmitHandshake:
+			case transaction.priority === MessagePriority.Nonce:
 			// We also don't want to immediately send the node to sleep when it wakes up
 			case isCommandClassContainer(msg) &&
 				msg.command instanceof WakeUpCCNoMoreInformation:
@@ -2859,6 +3800,22 @@ ${handlers.length} left`,
 			errorMsg,
 			errorCode,
 		);
+	}
+
+	/**
+	 * @internal
+	 * Pauses the send thread, avoiding commands to be sent to the controller
+	 */
+	public pauseSendThread(): void {
+		this.sendThread.send({ type: "pause" });
+	}
+
+	/**
+	 * @internal
+	 * Unpauses the send thread, allowing commands to be sent to the controller again
+	 */
+	public unpauseSendThread(): void {
+		this.sendThread.send({ type: "unpause" });
 	}
 
 	/** Re-sorts the send queue */
@@ -2955,7 +3912,10 @@ ${handlers.length} left`,
 				`Restoring the network from cache was successful!`,
 			);
 		} catch (e) {
-			const message = `Restoring the network from cache failed: ${e.stack}`;
+			const message = `Restoring the network from cache failed: ${getErrorMessage(
+				e,
+				true,
+			)}`;
 			this.emit(
 				"error",
 				new ZWaveError(message, ZWaveErrorCodes.Driver_InvalidCache),
@@ -3075,7 +4035,7 @@ ${handlers.length} left`,
 			}
 			return ret;
 		} catch (e) {
-			this.driverLog.print(e.message, "error");
+			this.driverLog.print(getErrorMessage(e), "error");
 		}
 	}
 
@@ -3095,13 +4055,23 @@ ${handlers.length} left`,
 			this.driverLog.print(
 				`Installing version ${newVersion} of configuration DB...`,
 			);
-			if (isDocker()) {
+			// We have 3 variants of this.
+			const extConfigDir = externalConfigDir();
+			if (this.configManager.useExternalConfig && extConfigDir) {
+				// 1. external config dir, leave node_modules alone
+				await installConfigUpdateInDocker(newVersion, {
+					cacheDir: this.options.storage.cacheDir,
+					configDir: extConfigDir,
+				});
+			} else if (isDocker()) {
+				// 2. Docker, but no external config dir, extract into node_modules
 				await installConfigUpdateInDocker(newVersion);
 			} else {
+				// 3. normal environment, use npm/yarn to install a new version of @zwave-js/config
 				await installConfigUpdate(newVersion);
 			}
 		} catch (e) {
-			this.driverLog.print(e.message, "error");
+			this.driverLog.print(getErrorMessage(e), "error");
 			return false;
 		}
 		this.driverLog.print(

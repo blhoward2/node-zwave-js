@@ -2,6 +2,7 @@
 
     -   [Introduction](README.md)
     -   [Quick Start](getting-started/quickstart.md)
+    -   [Security S2](getting-started/security-s2.md)
     -   [Migrating to v6](getting-started/migrating-to-v6.md)
     -   [Migrating to v7](getting-started/migrating-to-v7.md)
     -   [Migrating to v8](getting-started/migrating-to-v8.md)
@@ -14,8 +15,10 @@
     -   [Controller](api/controller.md)
     -   [ZWaveNode](api/node.md)
     -   [Endpoint](api/endpoint.md)
+    -   [Virtual nodes and endpoints](api/virtual-node-endpoint.md)
     -   [Values and Metadata](api/valueid.md)
     -   [ConfigManager](api/config-manager.md)
+    -   [Utilities](api/utils.md)
     -   [Command Classes](api/CCs/index.md)
 
         -   [Alarm Sensor CC](api/CCs/AlarmSensor.md)
@@ -33,6 +36,7 @@
         -   [Configuration CC](api/CCs/Configuration.md)
         -   [CRC-16 Encapsulation CC](api/CCs/CRC16.md)
         -   [Door Lock CC](api/CCs/DoorLock.md)
+        -   [Door Lock Logging CC](api/CCs/DoorLockLogging.md)
         -   [Entry Control CC](api/CCs/EntryControl.md)
         -   [Firmware Update Meta Data CC](api/CCs/FirmwareUpdateMetaData.md)
         -   [Indicator CC](api/CCs/Indicator.md)
@@ -49,10 +53,12 @@
         -   [Node Naming and Location CC](api/CCs/NodeNamingAndLocation.md)
         -   [No Operation CC](api/CCs/NoOperation.md)
         -   [Notification CC](api/CCs/Notification.md)
+        -   [Powerlevel CC](api/CCs/Powerlevel.md)
         -   [Protection CC](api/CCs/Protection.md)
         -   [Scene Activation CC](api/CCs/SceneActivation.md)
         -   [Scene Actuator Configuration CC](api/CCs/SceneActuatorConfiguration.md)
         -   [Scene Controller Configuration CC](api/CCs/SceneControllerConfiguration.md)
+        -   [Security 2 CC](api/CCs/Security2.md)
         -   [Security CC](api/CCs/Security.md)
         -   [Sound Switch CC](api/CCs/SoundSwitch.md)
         -   [Supervision CC](api/CCs/Supervision.md)
@@ -73,6 +79,7 @@
 
     -   [Send custom messages](usage/custom.md)
     -   [External config DB location](usage/external-config.md)
+    -   [Connect to a hosted serial port over TCP](usage/tcp-connection.md)
 
 -   Troubleshooting
 

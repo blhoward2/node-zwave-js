@@ -25,6 +25,7 @@ The **Command Classes API** provides a high-to-mid level entrypoint which allows
 -   [Configuration CC](api/CCs/Configuration.md) · `0x70`
 -   [CRC-16 Encapsulation CC](api/CCs/CRC16.md) · `0x56`
 -   [Door Lock CC](api/CCs/DoorLock.md) · `0x62`
+-   [Door Lock Logging CC](api/CCs/DoorLockLogging.md) · `0x4c`
 -   [Entry Control CC](api/CCs/EntryControl.md) · `0x6f`
 -   [Firmware Update Meta Data CC](api/CCs/FirmwareUpdateMetaData.md) · `0x7a`
 -   [Indicator CC](api/CCs/Indicator.md) · `0x87`
@@ -41,10 +42,12 @@ The **Command Classes API** provides a high-to-mid level entrypoint which allows
 -   [Node Naming and Location CC](api/CCs/NodeNamingAndLocation.md) · `0x77`
 -   [No Operation CC](api/CCs/NoOperation.md) · `0x00`
 -   [Notification CC](api/CCs/Notification.md) · `0x71`
+-   [Powerlevel CC](api/CCs/Powerlevel.md) · `0x73`
 -   [Protection CC](api/CCs/Protection.md) · `0x75`
 -   [Scene Activation CC](api/CCs/SceneActivation.md) · `0x2b`
 -   [Scene Actuator Configuration CC](api/CCs/SceneActuatorConfiguration.md) · `0x2c`
 -   [Scene Controller Configuration CC](api/CCs/SceneControllerConfiguration.md) · `0x2d`
+-   [Security 2 CC](api/CCs/Security2.md) · `0x9f`
 -   [Security CC](api/CCs/Security.md) · `0x98`
 -   [Sound Switch CC](api/CCs/SoundSwitch.md) · `0x79`
 -   [Supervision CC](api/CCs/Supervision.md) · `0x6c`
