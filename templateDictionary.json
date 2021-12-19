@@ -286,7 +286,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Enable/Disable The Function of Parameter 91 And 92": {
 		"label": "Enable/Disable The Function of Parameter 91 And 92",
 		"description": "This parameter is used to enable/disable the function of parameter 91 and 92 (1=enabled, 0=disabled)",
@@ -1036,7 +1035,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Enable/Disable Waking Up For 10 Minutes When Re-power On (battery Mode) The Multisensor": {
 		"label": "Enable/Disable Waking Up For 10 Minutes When Re-power On (battery Mode) The Multisensor",
 		"description": "This parameter is used to enable/disable waking up for 10 minutes when re-power on (battery mode) the multisensor. 1. value = 0, disable. 2. value =others, enable",
@@ -3334,7 +3332,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Notification When Load Status Changed": {
 		"label": "Notification When Load Status Changed",
 		"description": "Smart plug can send notifications to association device (group lifeline) when state of smart plug’s load changed",
@@ -4984,7 +4981,6 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-
 	"Motion Sensor Sensitivity": {
 		"label": "Motion Sensor Sensitivity",
 		"description": "1 – high 2 – medium 3 – low",
@@ -5243,24 +5239,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Power Reporting in Watts By Time Interval": {
-		"label": "Power Reporting in Watts By Time Interval",
-		"description": "Set value means time interval (0 - 32767) in seconds, when power report is send. available configuration parameters (data type is 2 byte dec):  • default value 0 • 0 - reporting disabled • 1 - 32767 = 1 second - 32767 seconds. reporting enabled. power report is send with time interval set by entered value",
-		"counter": 3,
-		"equivParameters": {
-			"0x0159": {
-				"0x0159:0x0001:0x0051:2077": "42",
-				"0x0159:0x0001:0x0052:2252": "42"
-			},
-			"0x0175": {
-				"0x0175:0x0001:0x0051:2838": "42"
-			}
-		},
-		"valueSize": 2,
-		"maxValue": 32767,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Maximum Dimming Value": {
 		"label": "Maximum Dimming Value",
 		"description": "Available config. parameters (data type is 1 byte dec): • default value 99 = 99% (maximum dimming value) • 2- 99 = 2% - 99%, step is 1%. maximum dimming values is set by entered value. note: the maximum level may not be lower than the minimum level! 99% max. dimming value is defined by Z-Wave multilevel device class",
@@ -5612,7 +5591,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"To Set Which Notification Would Be Sent to The Associated Devices (group 1)": {
 		"label": "To Set Which Notification Would Be Sent to The Associated Devices (group 1)",
 		"description": "To set which notification would be sent to the associated devices (group 1) when the state of nano dimmer’s load is changed",
@@ -6233,7 +6211,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Set The On/Off Time of The LED When It is in Night Light Mode": {
 		"label": "Set The On/Off Time of The LED When It is in Night Light Mode",
 		"description": "Set the on/off time of the LED when it is in night light mode",
@@ -6362,21 +6339,7 @@
 		"minValue": 0,
 		"defaultValue": 1573017
 	},
-	"Enable And Disable The LED Indication When PIR Triggered And After Timeout": {
-		"label": "Enable And Disable The LED Indication When PIR Triggered And After Timeout",
-		"description": "Enable & disable the LED indication when PIR is triggered and after timeout",
-		"counter": 2,
-		"equivParameters": {
-			"0x0063": {
-				"0x0063:0x4953:0x3034:2157": "28",
-				"0x0063:0x4953:0x3033:2189": "28"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
+
 	"Interior Status LED Control": {
 		"label": "Interior Status LED Control",
 		"description": "The configuration parameter 35 is a one byte field that will allow the user to get / set the value for the interior status LED control. the value of 0 means that the setting is disabled; whereas the value of 1 means that the setting is enabled. sending a set command with the default field set to 1 will cause the control to revert back to its factory default setting",
@@ -6625,7 +6588,6 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-
 	"Configure The State of LED When It is in 3 Modes": {
 		"label": "Configure The State of LED When It is in 3 Modes",
 		"description": "Configure the state of LED when it is in 3 modes (energy mode, momentary indicate mode, night light mode)",
@@ -6744,7 +6706,6 @@
 		"minValue": 0,
 		"defaultValue": 255
 	},
-
 	"Motion_disable": {
 		"label": "Motion_disable",
 		"description": "Motion disable timeout after Basic Set to motion endpoint when the internal motion sensor is not used for evaluating the behaviour of the lamp and groups 2 and 3. events are, however, still transmitted to the lifeline, and the lamp can be controlled via remote motion sensors.  for values 1-209 - internal motion sensor is disabled for specified timeout after Basic Set 0x00 to motion endpoint",
@@ -6795,7 +6756,6 @@
 		"minValue": 0,
 		"defaultValue": 2
 	},
-
 	"Overheat Protection": {
 		"label": "Overheat Protection",
 		"description": "Output load will be turned off automatically after 30 seconds and if the temperature of product inside exceeds 100 ℃",
@@ -6884,7 +6844,6 @@
 		"minValue": 0,
 		"defaultValue": 3
 	},
-
 	"Off_behaviour": {
 		"label": "Off_behaviour",
 		"description": "Behaviour after basic off ( and similar commands ). if a transition ( even with zero change ) with a non-default duration is to be processed, the transition cannot be interrupted by any motion event in any case.  for values 1-209 - lamp is switched off and remains so until after a specified timeout once a new motion event (local or remote) is received",
@@ -7561,6 +7520,8 @@
 		"counter": 5,
 		"equivParameters": {
 			"0x0159": {
+				"0x0159:0x0001:0x0051:2077": "42",
+				"0x0159:0x0001:0x0052:2252": "42",
 				"0x0159:0x0003:0x0052:2376": "42",
 				"0x0159:0x0002:0x0053:2536": "42",
 				"0x0159:0x0003:0x0053:2976": "42"
@@ -7569,6 +7530,7 @@
 				"0x031b:0x0003:0x0053:2540": "42"
 			},
 			"0x0175": {
+				"0x0175:0x0001:0x0051:2838": "42",
 				"0x0175:0x0003:0x0052:2962": "42"
 			}
 		},
@@ -9051,7 +9013,6 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-
 	"Enable/ Disable to Blink The Orange LED When Wallmote Sends Out Wake Up Notification": {
 		"label": "Enable/ Disable to Blink The Orange LED When Wallmote Sends Out Wake Up Notification",
 		"description": "Enable/ disable to blink the orange LED when wallmote sends out wake up notification",
@@ -9641,29 +9602,15 @@
 		"minValue": 0,
 		"defaultValue": 50
 	},
-	"Get Electronic Transition Count": {
-		"label": "Get Electronic Transition Count",
-		"description": "Electronic state change count",
-		"counter": 2,
-		"equivParameters": {
-			"0x003b": {
-				"0x003b:0x0001:0x0468:3028": "12",
-				"0x003b:0x0001:0x0469:3130": "12"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 0,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Get Electronic Failed Count": {
 		"label": "Get Electronic Failed Count",
 		"description": "Failed electronic activation count",
 		"counter": 2,
 		"equivParameters": {
 			"0x003b": {
-				"0x003b:0x0001:0x0468:3028": "14",
-				"0x003b:0x0001:0x0469:3130": "14"
+				"0x003b:0x0001:0x0468:3028": "12",
+				"0x003b:0x0001:0x0469:3130": "12"
 			}
 		},
 		"valueSize": 4,
@@ -9812,7 +9759,6 @@
 		"minValue": 0,
 		"defaultValue": 60
 	},
-
 	"Set The Operation Mode of External Switch": {
 		"label": "Set The Operation Mode of External Switch",
 		"description": "Set the operation mode of external switch.  note: for the description of operation mode 1 or 2, please refer to the user manual",
@@ -9991,6 +9937,10 @@
 			"0x0086": {
 				"0x0086:0x0302:0x0082:3153": "84",
 				"0x0086:0x0902:0x0082:3264": "84"
+			},
+			"0x0063": {
+				"0x0063:0x4953:0x3034:2157": "28",
+				"0x0063:0x4953:0x3033:2189": "28"
 			}
 		},
 		"valueSize": 1,
@@ -10915,7 +10865,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Wiring Type": {
 		"label": "Wiring Type",
 		"description": "Wiring type  note: this parameter is read only",
@@ -11093,31 +11042,7 @@
 		"minValue": -1,
 		"defaultValue": 0
 	},
-	"Default Brightness Level": {
-		"label": "Default Brightness Level",
-		"description": "Set the default brightness level that the dimmer will turn on when being controlled manually",
-		"counter": 8,
-		"equivParameters": {
-			"0x0063": {
-				"0x0063:0x4944:0x3236:3358": "32",
-				"0x0063:0x4944:0x3238:3360": "32",
-				"0x0063:0x4944:0x3330:4002": "32",
-				"0x0063:0x4944:0x3332:4003": "32",
-				"0x0063:0x4944:0x3339:4005": "32"
-			},
-			"0x0039": {
-				"0x0039:0x4944:0x3235:3600": "32",
-				"0x0039:0x4944:0x3237:3601": "32"
-			},
-			"0x041b": {
-				"0x041b:0x4944:0x3038:3750": "32"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 99,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Activate Supervision": {
 		"label": "Activate Supervision",
 		"description": "",
@@ -11691,7 +11616,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-
 	"Active Power Reports": {
 		"label": "Active Power Reports",
 		"description": "The parameter defines the power level change that will result in a new power report being sent. the value is a percentage of the previous report",
@@ -12125,32 +12049,17 @@
 		"minValue": 1,
 		"defaultValue": 1
 	},
-	"Led Indicator Mode For Dimmer": {
-		"label": "Led Indicator Mode For Dimmer",
-		"description": "Led indicator mode for dimmer",
-		"counter": 2,
+
+	"Led Indicator Color For Relay": {
+		"label": "Led Indicator Color For Relay",
+		"description": "Led indicator color for relay",
+		"counter": 3,
 		"equivParameters": {
 			"0x0312": {
 				"0x0312:0xa000:0xa008:3776": "1"
 			},
 			"0x027a": {
-				"0x027a:0xa000:0xa008:3791": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 3,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Led Indicator Mode For Relay": {
-		"label": "Led Indicator Mode For Relay",
-		"description": "Led indicator mode for relay",
-		"counter": 2,
-		"equivParameters": {
-			"0x0312": {
-				"0x0312:0xa000:0xa008:3776": "2"
-			},
-			"0x027a": {
+				"0x027a:0xa000:0xa008:3791": "1",
 				"0x027a:0xbb00:0xbb08:4131": "1"
 			}
 		},
@@ -12159,42 +12068,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Led Indicator Color For Relay": {
-		"label": "Led Indicator Color For Relay",
-		"description": "Led indicator color for relay",
-		"counter": 3,
-		"equivParameters": {
-			"0x0312": {
-				"0x0312:0xa000:0xa008:3776": "4"
-			},
-			"0x027a": {
-				"0x027a:0xa000:0xa008:3791": "4",
-				"0x027a:0xbb00:0xbb08:4131": "6"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 3,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Led Indicator Brightness For Relay": {
-		"label": "Led Indicator Brightness For Relay",
-		"description": "Led indicator brightness for relay",
-		"counter": 3,
-		"equivParameters": {
-			"0x0312": {
-				"0x0312:0xa000:0xa008:3776": "6"
-			},
-			"0x027a": {
-				"0x027a:0xa000:0xa008:3791": "6",
-				"0x027a:0xbb00:0xbb08:4131": "11"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 1
-	},
+
 	"Auto Turn-off Timer For Relay 1": {
 		"label": "Auto Turn-off Timer For Relay 1",
 		"description": "Use this parameter to set the time a􀈇er which you want the device connected to relay 1 to automatically turn off once it has been turned on. the number entered as value corresponds to the number of minutes",
@@ -12661,7 +12535,6 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-
 	"Handing Control": {
 		"label": "Handing Control",
 		"description": "The configuration parameter 10 is a read/write parameter with a one-byte field. when this parameter is read, it will return the handing of the lock. when this parameter is written, it will run a handing operation. when written with a value of 0x01, it will cause the lock to cycle through locking and unlocking until it determines the correct handing. it is suggested that this operation occur while the door is opened so that no obstructions will be in the way for the operation. after the completion of the handing process, a configuration report message will be sent back to the requestor. it will contain a non-zero value for success or a zero value for failure",
@@ -12755,6 +12628,8 @@
 		"counter": 6,
 		"equivParameters": {
 			"0x0312": {
+				"0x0312:0xee00:0xee01:4125": "11",
+				"0x0312:0xee00:0xee03:4138": "11",
 				"0x0312:0xbb00:0xbb02:4078": "15",
 				"0x0312:0xff00:0xff0d:4137": "15",
 				"0x0312:0x0004:0xee02:4139": "15",
@@ -12781,13 +12656,16 @@
 				"0x0312:0x0004:0xee02:4139": "24",
 				"0x0312:0xee00:0xee04:4140": "24",
 				"0x0312:0xff07:0xff03:4254": "24",
-				"0x0312:0xac01:0x4002:4294": "24"
+				"0x0312:0xac01:0x4002:4294": "24",
+				"0x0312:0xa000:0xa008:3776": "6"
 			},
 			"0x027a": {
 				"0x027a:0x7000:0xa001:4103": "15",
 				"0x027a:0x7000:0xa006:4104": "15",
 				"0x027a:0x7000:0xa002:4108": "24",
-				"0x027a:0x7000:0xa007:4109": "24"
+				"0x027a:0x7000:0xa007:4109": "24",
+				"0x027a:0xa000:0xa008:3791": "6",
+				"0x027a:0xbb00:0xbb08:4131": "11"
 			}
 		},
 		"valueSize": 1,
@@ -12956,21 +12834,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Enable Or Disable Output Control": {
-		"label": "Enable Or Disable Output Control",
-		"description": "Parameter=11，size=1，value=0 disable local button and external switch control enable Z-Wave control value=1 enable local button and external switch control enable Z-Wave control value = 2 disable local button and external switch control",
-		"counter": 2,
-		"equivParameters": {
-			"0x0312": {
-				"0x0312:0xee00:0xee01:4125": "11",
-				"0x0312:0xee00:0xee03:4138": "11"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 1
-	},
 	"Enable Or Disable Scene": {
 		"label": "Enable Or Disable Scene",
 		"description": "Parameter=9，size=1， value=0 disable  value=1 enable",
@@ -13009,6 +12872,20 @@
 		"description": "Custom brightness level - in this parameter define default brightness level the switch will turn on to from main switch or regular switch in 3-way when pressed upper paddle once. parameter: 18 size: 1 byte dec values 0-99 0 - last brightness level 1-99 custom brightness level default = 0",
 		"counter": 2,
 		"equivParameters": {
+			"0x0063": {
+				"0x0063:0x4944:0x3236:3358": "32",
+				"0x0063:0x4944:0x3238:3360": "32",
+				"0x0063:0x4944:0x3330:4002": "32",
+				"0x0063:0x4944:0x3332:4003": "32",
+				"0x0063:0x4944:0x3339:4005": "32"
+			},
+			"0x0039": {
+				"0x0039:0x4944:0x3235:3600": "32",
+				"0x0039:0x4944:0x3237:3601": "32"
+			},
+			"0x041b": {
+				"0x041b:0x4944:0x3038:3750": "32"
+			},
 			"0x0312": {
 				"0x0312:0x0004:0xee02:4139": "18",
 				"0x0312:0xee00:0xee04:4140": "18"
