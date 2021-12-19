@@ -63,6 +63,13 @@
 		"counter": 38,
 		"equivParameters": {
 			"0x0086": {
+				"0x0086:0x0302:0x0082:3153": "252",
+				"0x0086:0x0902:0x0082:3264": "252",
+				"0x0086:0x0303:0x0060:2515": "252",
+				"0x0086:0x0103:0x0060:3093": "252",
+				"0x0086:0x0003:0x0060:3104": "252",
+				"0x0086:0x0203:0x0060:3119": "252",
+				"0x0086:0x0903:0x004e:3265": "252",
 				"0x0086:0x0003:0x004b:1045": "252",
 				"0x0086:0x0103:0x004b:1053": "252",
 				"0x0086:0x0203:0x004b:1056": "252",
@@ -93,6 +100,11 @@
 				"0x0086:0x0103:0x004e:998": "252"
 			},
 			"0x016a": {
+				"0x016a:0x1d02:0x0082:2767": "252",
+				"0x016a:0x0203:0x0060:2366": "252",
+				"0x016a:0x0003:0x0060:2375": "252",
+				"0x016a:0x1d03:0x0091:2584": "252",
+				"0x016a:0x1d03:0x0091:2619": "252",
 				"0x016a:0x0103:0x0060:1549": "252",
 				"0x016a:0x0103:0x0079:2301": "252",
 				"0x016a:0x0104:0x0075:2390": "252",
@@ -103,6 +115,24 @@
 				"0x016a:0x0103:0x00a9:2738": "252",
 				"0x016a:0x1d04:0x0076:2766": "252",
 				"0x016a:0x1d03:0x0079:2768": "252"
+			},
+			"0x0300": {
+				"0x0300:0x0200:0x0008:2623": "254",
+				"0x0300:0x0200:0x000b:2722": "254"
+			},
+			"0x0176": {
+				"0x0176:0x0003:0x0003:2892": "254"
+			},
+			"0x0384": {
+				"0x0384:0x0200:0x0008:2909": "254",
+				"0x0384:0x0200:0x000b:3007": "254"
+			},
+			"0x0208": {
+				"0x0208:0x0101:0x001b:3025": "254",
+				"0x0208:0x0100:0x0019:3202": "254",
+				"0x0208:0x0100:0x0022:3697": "254",
+				"0x0208:0x0101:0x0016:3722": "254",
+				"0x0208:0x0202:0x000b:4011": "254"
 			}
 		},
 		"valueSize": 1,
@@ -256,60 +286,18 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Current Overload Protection": {
-		"label": "Current Overload Protection",
-		"description": "This parameter is used for the overload protection, which means the load will be disconnected after 2 minutes when the current more than 15.5a",
-		"counter": 31,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x004b:1053": "3",
-				"0x0086:0x0203:0x004b:1056": "3",
-				"0x0086:0x0203:0x004e:1089": "3",
-				"0x0086:0x0103:0x0060:1312": "3",
-				"0x0086:0x001b:0x0048:1416": "3",
-				"0x0086:0x0003:0x0063:1519": "3",
-				"0x0086:0x0103:0x006f:2095": "3",
-				"0x0086:0x0003:0x006f:2135": "3",
-				"0x0086:0x0103:0x0084:2136": "3",
-				"0x0086:0x0203:0x006f:2149": "3",
-				"0x0086:0x0103:0x0074:2208": "3",
-				"0x0086:0x0103:0x0063:2246": "3",
-				"0x0086:0x0303:0x0060:2515": "3",
-				"0x0086:0x0103:0x0060:3093": "3",
-				"0x0086:0x0903:0x0084:3097": "3",
-				"0x0086:0x0903:0x0074:3098": "3",
-				"0x0086:0x0003:0x0060:3104": "3",
-				"0x0086:0x0303:0x006f:3112": "3",
-				"0x0086:0x0203:0x0060:3119": "3",
-				"0x0086:0x0903:0x004e:3265": "3",
-				"0x0086:0x0103:0x004e:998": "3"
-			},
-			"0x016a": {
-				"0x016a:0x0103:0x0060:1549": "3",
-				"0x016a:0x0103:0x006f:2258": "3",
-				"0x016a:0x0103:0x0074:2261": "3",
-				"0x016a:0x0103:0x0084:2275": "3",
-				"0x016a:0x0203:0x0060:2366": "3",
-				"0x016a:0x0003:0x0060:2375": "3",
-				"0x016a:0x1d03:0x0091:2584": "3",
-				"0x016a:0x1d03:0x0091:2619": "3",
-				"0x016a:0x1d03:0x006f:2765": "3"
-			},
-			"0x0311": {
-				"0x0311:0x0903:0x006f:3704": "3"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Enable/Disable The Function of Parameter 91 And 92": {
 		"label": "Enable/Disable The Function of Parameter 91 And 92",
 		"description": "This parameter is used to enable/disable the function of parameter 91 and 92 (1=enabled, 0=disabled)",
 		"counter": 6,
 		"equivParameters": {
 			"0x0086": {
+				"0x0086:0x0303:0x0060:2515": "90",
+				"0x0086:0x0103:0x0060:3093": "90",
+				"0x0086:0x0003:0x0060:3104": "90",
+				"0x0086:0x0203:0x0060:3119": "90",
+				"0x0086:0x0903:0x004e:3265": "90",
 				"0x0086:0x0203:0x004b:1056": "90",
 				"0x0086:0x0203:0x004e:1089": "90",
 				"0x0086:0x0103:0x0060:1312": "90",
@@ -317,6 +305,8 @@
 				"0x0086:0x0003:0x0063:1519": "90"
 			},
 			"0x016a": {
+				"0x016a:0x1d03:0x0091:2584": "90",
+				"0x016a:0x1d03:0x0091:2619": "90",
 				"0x016a:0x0103:0x0060:1549": "90"
 			}
 		},
@@ -990,6 +980,10 @@
 			"0x0190": {
 				"0x0190:0x0001:0x0001:1161": "23",
 				"0x0190:0x0006:0x0001:3190": "23"
+			},
+			"0x019a": {
+				"0x019a:0x0003:0x000a:2737": "5",
+				"0x019a:0x0004:0x000b:3901": "5"
 			}
 		},
 		"valueSize": 1,
@@ -1042,23 +1036,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Which Report Needs to Be Sent in Report Group 2": {
-		"label": "Which Report Needs to Be Sent in Report Group 2",
-		"description": "This parameter is used to configure to send the humidity sensor, thermometer, light sensor and battery reports automatically in report group 2. note: the values corresponding to the first four bits of the parameter value may be combined to create different combinations of reports that you wish to have sent. for example, the temperature sensor report is the value 32 and the battery report is the value 1, so setting parameter 102 to a value of 33 will result in both temperature sensor report and battery report to be reported. see the full description of the parameter values for other possible settings",
-		"counter": 2,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0102:0x004a:1163": "102"
-			},
-			"0x016a": {
-				"0x016a:0x0102:0x0064:1534": "102"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 128,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Enable/Disable Waking Up For 10 Minutes When Re-power On (battery Mode) The Multisensor": {
 		"label": "Enable/Disable Waking Up For 10 Minutes When Re-power On (battery Mode) The Multisensor",
 		"description": "This parameter is used to enable/disable waking up for 10 minutes when re-power on (battery mode) the multisensor. 1. value = 0, disable. 2. value =others, enable",
@@ -1627,6 +1605,16 @@
 		"counter": 13,
 		"equivParameters": {
 			"0x0086": {
+				"0x0086:0x0103:0x006f:2095": "20",
+				"0x0086:0x0003:0x006f:2135": "20",
+				"0x0086:0x0103:0x0084:2136": "20",
+				"0x0086:0x0203:0x006f:2149": "20",
+				"0x0086:0x0103:0x0074:2208": "20",
+				"0x0086:0x0103:0x008c:2247": "20",
+				"0x0086:0x0103:0x008b:2306": "20",
+				"0x0086:0x0903:0x0084:3097": "20",
+				"0x0086:0x0903:0x0074:3098": "20",
+				"0x0086:0x0303:0x006f:3112": "20",
 				"0x0086:0x0103:0x0060:1312": "20",
 				"0x0086:0x0003:0x0063:1519": "20",
 				"0x0086:0x0103:0x0063:2246": "20",
@@ -1637,11 +1625,21 @@
 				"0x0086:0x0903:0x004e:3265": "20"
 			},
 			"0x016a": {
+				"0x016a:0x0103:0x006f:2258": "20",
+				"0x016a:0x0103:0x0074:2261": "20",
+				"0x016a:0x0103:0x0084:2275": "20",
+				"0x016a:0x0103:0x008b:2330": "20",
+				"0x016a:0x0103:0x008c:2333": "20",
+				"0x016a:0x1d03:0x006f:2765": "20",
 				"0x016a:0x0103:0x0060:1549": "20",
 				"0x016a:0x0203:0x0060:2366": "20",
 				"0x016a:0x0003:0x0060:2375": "20",
 				"0x016a:0x1d03:0x0091:2584": "20",
 				"0x016a:0x1d03:0x0091:2619": "20"
+			},
+			"0x0311": {
+				"0x0311:0x0903:0x006f:3704": "20",
+				"0x0311:0x0903:0x008c:3716": "20"
 			}
 		},
 		"valueSize": 1,
@@ -2030,6 +2028,7 @@
 		"counter": 2,
 		"equivParameters": {
 			"0x010f": {
+				"0x010f:0x1201:0x1000:2336": "12",
 				"0x010f:0x0702:0x1002:1356": "13"
 			}
 		},
@@ -2564,65 +2563,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Reset The Sensor": {
-		"label": "Reset The Sensor",
-		"description": "This parameter is used to reset the sensor",
-		"counter": 8,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0102:0x0061:1495": "255",
-				"0x0086:0x0102:0x0078:1574": "255",
-				"0x0086:0x0102:0x0070:1611": "255",
-				"0x0086:0x0a02:0x0070:2770": "255",
-				"0x0086:0x1c02:0x0070:3221": "255"
-			},
-			"0x016a": {
-				"0x016a:0x0102:0x0070:1627": "255",
-				"0x016a:0x1d02:0x0070:2653": "255",
-				"0x016a:0x0a02:0x0061:3219": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Led Indication": {
-		"label": "Led Indication",
-		"description": "0 = specific event indication (*) off 1 = on",
-		"counter": 14,
-		"equivParameters": {
-			"0x019a": {
-				"0x019a:0x0003:0x0003:1510": "2",
-				"0x019a:0x0004:0x0004:3726": "2"
-			},
-			"0x027a": {
-				"0x027a:0x0201:0x0006:2960": "20"
-			},
-			"0x0403": {
-				"0x0403:0x0003:0x0006:3372": "2"
-			},
-			"0x0063": {
-				"0x0063:0x4944:0x3332:4003": "3",
-				"0x0063:0x4952:0x3237:4004": "3"
-			},
-			"0x0312": {
-				"0x0312:0xbb00:0xbb01:4065": "2",
-				"0x0312:0xbb00:0xbb02:4078": "2",
-				"0x0312:0xee00:0xee01:4125": "2",
-				"0x0312:0xff00:0xff0d:4137": "2",
-				"0x0312:0xee00:0xee03:4138": "2",
-				"0x0312:0x0004:0xee02:4139": "2",
-				"0x0312:0xee00:0xee04:4140": "2",
-				"0x0312:0xff07:0xff03:4254": "2",
-				"0x0312:0xac01:0x4002:4294": "2"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
 	"Retrieve Registered User Id Information": {
 		"label": "Retrieve Registered User Id Information",
 		"description": "Rfid card index number + 9",
@@ -2723,21 +2663,6 @@
 		"maxValue": 2,
 		"minValue": 0,
 		"defaultValue": 2
-	},
-	"Remember Device Status After Power Failure": {
-		"label": "Remember Device Status After Power Failure",
-		"description": "Define how the plug will react after the power supply is back on",
-		"counter": 2,
-		"equivParameters": {
-			"0x0176": {
-				"0x0176:0x0003:0x0001:1536": "2",
-				"0x0176:0x0003:0x0002:1542": "2"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 1
 	},
 	"Configure The State of Led": {
 		"label": "Configure The State of Led",
@@ -2851,7 +2776,13 @@
 				"0x037c:0x0005:0x0063:2935": "2"
 			},
 			"0x027a": {
+				"0x027a:0xa000:0xa003:3192": "17",
+				"0x027a:0x7000:0xf001:4114": "1",
 				"0x027a:0xa000:0xa004:3158": "27"
+			},
+			"0x0312": {
+				"0x0312:0x7000:0xf001:4080": "1",
+				"0x0312:0x0924:0xd001:4246": "1"
 			}
 		},
 		"valueSize": 1,
@@ -3003,26 +2934,6 @@
 		"minValue": 0,
 		"defaultValue": 10
 	},
-	"Measuring Energy Consumed By The Wall Plug Itself": {
-		"label": "Measuring Energy Consumed By The Wall Plug Itself",
-		"description": "This parameter determines whether energy metering should include the amount of energy consumed by the wall plug itself. results are being added to energy consumed by controlled device",
-		"counter": 7,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x0602:0x1001:1653": "15",
-				"0x010f:0x1401:0x2000:2622": "15",
-				"0x010f:0x1701:0x2000:2854": "15",
-				"0x010f:0x1801:0x1000:2899": "15",
-				"0x010f:0x1701:0xa000:3193": "15",
-				"0x010f:0x0602:0x3003:3487": "15",
-				"0x010f:0x1501:0x1000:3606": "15"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"Control of „on/Off (button)” Association Group (2) Devices": {
 		"label": "Control of „on/Off (button)” Association Group (2) Devices",
 		"description": "Controlling devices with the b-button. this parameter is inactive in “always on” mode (parameter 1). control as the wall plug: • switching the wall plug on – switch the devices on (parameter 24) • switching the wall plug off – switch the devices off (parameter 24) control opposite to the wall plug: • switching the wall plug on – switch the devices off • switching the wall plug off – switch the devices on",
@@ -3099,6 +3010,9 @@
 		"counter": 2,
 		"equivParameters": {
 			"0x010f": {
+				"0x010f:0x1801:0x1000:2899": "43",
+				"0x010f:0x1701:0xa000:3193": "43",
+				"0x010f:0x1501:0x1000:3606": "43",
 				"0x010f:0x0602:0x1001:1653": "43",
 				"0x010f:0x0602:0x3003:3487": "43"
 			}
@@ -3168,6 +3082,8 @@
 		"counter": 2,
 		"equivParameters": {
 			"0x010f": {
+				"0x010f:0x0404:0x1000:3949": "152",
+				"0x010f:0x0204:0x1000:3980": "152",
 				"0x010f:0x0403:0x1000:1734": "11",
 				"0x010f:0x0203:0x1000:1742": "11"
 			}
@@ -3310,6 +3226,14 @@
 			"0x010f": {
 				"0x010f:0x0403:0x1000:1734": "9",
 				"0x010f:0x0203:0x1000:1742": "9"
+			},
+			"0x0175": {
+				"0x0175:0x0002:0x0052:2645": "30"
+			},
+			"0x0159": {
+				"0x0159:0x0002:0x0052:2795": "30",
+				"0x0159:0x0001:0x0055:3381": "30",
+				"0x0159:0x0001:0x0055:4211": "30"
 			}
 		},
 		"valueSize": 1,
@@ -3324,7 +3248,14 @@
 		"equivParameters": {
 			"0x010f": {
 				"0x010f:0x0203:0x1000:1742": "60",
-				"0x010f:0x0303:0x1000:3183": "60"
+				"0x010f:0x0303:0x1000:3183": "60",
+				"0x010f:0x0602:0x1001:1653": "15",
+				"0x010f:0x1401:0x2000:2622": "15",
+				"0x010f:0x1701:0x2000:2854": "15",
+				"0x010f:0x1801:0x1000:2899": "15",
+				"0x010f:0x1701:0xa000:3193": "15",
+				"0x010f:0x0602:0x3003:3487": "15",
+				"0x010f:0x1501:0x1000:3606": "15"
 			}
 		},
 		"valueSize": 1,
@@ -3387,6 +3318,15 @@
 			"0x0208": {
 				"0x0208:0x0101:0x0005:1789": "173",
 				"0x0208:0x0101:0x000a:1854": "173"
+			},
+			"0x0176": {
+				"0x0176:0x0003:0x0003:2892": "103"
+			},
+			"0x0384": {
+				"0x0384:0x0200:0x000b:3007": "103"
+			},
+			"0x0403": {
+				"0x0403:0x0003:0x0003:3144": "103"
 			}
 		},
 		"valueSize": 4,
@@ -3394,33 +3334,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Overcurrent Protection": {
-		"label": "Overcurrent Protection",
-		"description": "Smart plug keep detecting the load current, once the current exceeds 16.5a for more than 5 seconds, smart plug's load will turn off",
-		"counter": 6,
-		"equivParameters": {
-			"0x0208": {
-				"0x0208:0x0101:0x0005:1789": "20",
-				"0x0208:0x0101:0x000a:1854": "20"
-			},
-			"0x0300": {
-				"0x0300:0x0200:0x000b:2722": "1"
-			},
-			"0x0176": {
-				"0x0176:0x0003:0x0003:2892": "1"
-			},
-			"0x0384": {
-				"0x0384:0x0200:0x000b:3007": "1"
-			},
-			"0x0403": {
-				"0x0403:0x0003:0x0003:3144": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
+
 	"Notification When Load Status Changed": {
 		"label": "Notification When Load Status Changed",
 		"description": "Smart plug can send notifications to association device (group lifeline) when state of smart plug’s load changed",
@@ -3480,26 +3394,6 @@
 		},
 		"valueSize": 1,
 		"maxValue": 3,
-		"minValue": 0,
-		"defaultValue": 1
-	},
-	"Set The Bulbs State After It is Re-powered On": {
-		"label": "Set The Bulbs State After It is Re-powered On",
-		"description": "Set the bulbs state after it is re-powered on",
-		"counter": 5,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x0062:1829": "20",
-				"0x0086:0x0203:0x0062:1844": "20",
-				"0x0086:0x0003:0x0062:1851": "20",
-				"0x0086:0x0303:0x0062:2513": "20"
-			},
-			"0x016a": {
-				"0x016a:0x1d03:0x0062:2607": "20"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
 		"minValue": 0,
 		"defaultValue": 1
 	},
@@ -3604,16 +3498,32 @@
 		"counter": 8,
 		"equivParameters": {
 			"0x0086": {
+				"0x0086:0x0302:0x0082:3153": "255",
+				"0x0086:0x0902:0x0082:3264": "255",
 				"0x0086:0x0203:0x0062:1844": "255",
 				"0x0086:0x0003:0x0062:1851": "255",
 				"0x0086:0x0104:0x0075:1966": "255",
-				"0x0086:0x0303:0x0062:2513": "255"
+				"0x0086:0x0303:0x0062:2513": "255",
+				"0x0086:0x0102:0x0061:1495": "255",
+				"0x0086:0x0102:0x0078:1574": "255",
+				"0x0086:0x0102:0x0070:1611": "255",
+				"0x0086:0x0a02:0x0070:2770": "255",
+				"0x0086:0x1c02:0x0070:3221": "255"
 			},
 			"0x016a": {
+				"0x016a:0x0203:0x0060:2366": "255",
+				"0x016a:0x0003:0x0060:2375": "255",
+				"0x016a:0x1d03:0x0091:2584": "255",
+				"0x016a:0x1d03:0x0091:2619": "255",
+				"0x016a:0x0102:0x0082:2276": "255",
+				"0x016a:0x1d02:0x0082:2767": "255",
 				"0x016a:0x0104:0x0075:2390": "255",
 				"0x016a:0x0004:0x0075:2393": "255",
 				"0x016a:0x0204:0x0075:2394": "255",
-				"0x016a:0x1d03:0x0062:2607": "255"
+				"0x016a:0x1d03:0x0062:2607": "255",
+				"0x016a:0x0102:0x0070:1627": "255",
+				"0x016a:0x1d02:0x0070:2653": "255",
+				"0x016a:0x0a02:0x0061:3219": "255"
 			}
 		},
 		"valueSize": 4,
@@ -3671,24 +3581,6 @@
 		"maxValue": 255,
 		"minValue": 0,
 		"defaultValue": 255
-	},
-	"Get The Bulb’s Color Value": {
-		"label": "Get The Bulb’s Color Value",
-		"description": "Get the bulb’s color value. note: this parameter is a get-only parameter",
-		"counter": 3,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0003:0x0062:1851": "33",
-				"0x0086:0x0303:0x0062:2513": "33"
-			},
-			"0x016a": {
-				"0x016a:0x1d03:0x0062:2607": "33"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 16777215,
-		"minValue": 0,
-		"defaultValue": 0
 	},
 	"Indicator Modes": {
 		"label": "Indicator Modes",
@@ -4072,8 +3964,8 @@
 		"counter": 7,
 		"equivParameters": {
 			"0x027a": {
-				"0x027a:0x0101:0x000a:1901": "174",
-				"0x027a:0x0101:0x000d:2517": "174"
+				"0x027a:0x0101:0x000d:2517": "174",
+				"0x027a:0x0101:0x000a:1901": "174"
 			},
 			"0x0208": {
 				"0x0208:0x0101:0x000d:2341": "174",
@@ -4110,6 +4002,10 @@
 		"description": "You can choose how the LED indicator displays power consumption on the smart plug",
 		"counter": 9,
 		"equivParameters": {
+			"0x019a": {
+				"0x019a:0x0003:0x0003:1510": "2",
+				"0x019a:0x0004:0x0004:3726": "2"
+			},
 			"0x027a": {
 				"0x027a:0x0101:0x000a:1901": "27",
 				"0x027a:0x0101:0x000d:2517": "27",
@@ -4120,7 +4016,32 @@
 				"0x027a:0x7000:0xa006:4104": "2",
 				"0x027a:0x7000:0xa002:4108": "2",
 				"0x027a:0x7000:0xa007:4109": "2",
-				"0x027a:0xbb00:0xbb0a:4132": "5"
+				"0x027a:0xbb00:0xbb0a:4132": "5",
+				"0x027a:0x0201:0x0006:2960": "20"
+			},
+			"0x0403": {
+				"0x0403:0x0003:0x0006:3372": "2"
+			},
+			"0x0063": {
+				"0x0063:0x4944:0x3332:4003": "3",
+				"0x0063:0x4952:0x3237:4004": "3"
+			},
+			"0x0312": {
+				"0x0312:0xbb00:0xbb01:4065": "2",
+				"0x0312:0xbb00:0xbb02:4078": "2",
+				"0x0312:0xee00:0xee01:4125": "2",
+				"0x0312:0xff00:0xff0d:4137": "2",
+				"0x0312:0xee00:0xee03:4138": "2",
+				"0x0312:0x0004:0xee02:4139": "2",
+				"0x0312:0xee00:0xee04:4140": "2",
+				"0x0312:0xff07:0xff03:4254": "2",
+				"0x0312:0xac01:0x4002:4294": "2"
+			},
+			"0x0447": {
+				"0x0447:0x000e:0x1106:4110": "1",
+				"0x0447:0x000e:0x1108:4112": "1",
+				"0x0447:0x000e:0x1107:4121": "1",
+				"0x0447:0x000e:0x1202:4180": "1"
 			}
 		},
 		"valueSize": 1,
@@ -4134,6 +4055,8 @@
 		"counter": 4,
 		"equivParameters": {
 			"0x0063": {
+				"0x0063:0x494d:0x3034:2108": "1",
+				"0x0063:0x494d:0x3031:2126": "1",
 				"0x0063:0x4953:0x3133:1902": "18",
 				"0x0063:0x4953:0x3134:2124": "18",
 				"0x0063:0x4953:0x3034:2157": "18",
@@ -4237,6 +4160,11 @@
 		"description": "Define how the smart switch reacts after the power supply is back on",
 		"counter": 13,
 		"equivParameters": {
+			"0x0176": {
+				"0x0176:0x0003:0x0003:2892": "2",
+				"0x0176:0x0003:0x0001:1536": "2",
+				"0x0176:0x0003:0x0002:1542": "2"
+			},
 			"0x0208": {
 				"0x0208:0x0101:0x0003:1912": "21",
 				"0x0208:0x0101:0x000d:2341": "21",
@@ -4249,9 +4177,6 @@
 			"0x0300": {
 				"0x0300:0x0200:0x000b:2722": "2"
 			},
-			"0x0176": {
-				"0x0176:0x0003:0x0003:2892": "2"
-			},
 			"0x0384": {
 				"0x0384:0x0200:0x000b:3007": "2"
 			},
@@ -4262,6 +4187,49 @@
 			},
 			"0x0403": {
 				"0x0403:0x0003:0x0003:3144": "2"
+			},
+			"0x0312": {
+				"0x0312:0xa000:0xa003:3127": "1",
+				"0x0312:0xa000:0xa004:3128": "1",
+				"0x0312:0xaa00:0xaa01:3597": "8",
+				"0x0312:0xa000:0xaa02:3602": "8",
+				"0x0312:0xa000:0xa001:3604": "8",
+				"0x0312:0xff01:0xff03:3609": "8",
+				"0x0312:0xff01:0xff04:3610": "8",
+				"0x0312:0xa000:0xa002:3615": "8",
+				"0x0312:0xff01:0xff01:3628": "8",
+				"0x0312:0xff01:0xff02:3629": "8",
+				"0x0312:0xee00:0xee01:3981": "8",
+				"0x0312:0xee00:0xee02:3993": "8",
+				"0x0312:0xee00:0xee03:3996": "8",
+				"0x0312:0xee00:0xee04:4007": "8",
+				"0x0312:0xbb00:0xbb01:4065": "8",
+				"0x0312:0xbb00:0xbb02:4078": "8",
+				"0x0312:0xee00:0xee01:4125": "8",
+				"0x0312:0xff00:0xff0d:4137": "8",
+				"0x0312:0xee00:0xee03:4138": "8",
+				"0x0312:0x0004:0xee02:4139": "8",
+				"0x0312:0xee00:0xee04:4140": "8",
+				"0x0312:0xff07:0xff03:4254": "8",
+				"0x0312:0xac01:0x4002:4294": "8"
+			},
+			"0x027a": {
+				"0x027a:0xa000:0xa001:3147": "5",
+				"0x027a:0xaa00:0xaa01:3667": "8",
+				"0x027a:0x0902:0x2000:3720": "1",
+				"0x027a:0x7000:0xa001:4103": "8",
+				"0x027a:0x7000:0xa006:4104": "8",
+				"0x027a:0x7000:0xa002:4108": "8",
+				"0x027a:0x7000:0xa007:4109": "8"
+			},
+			"0x0330": {
+				"0x0330:0x0200:0xd005:2918": "2",
+				"0x0330:0x0201:0xd00c:3325": "2",
+				"0x0330:0x0201:0xd00f:3332": "2"
+			},
+			"0x0438": {
+				"0x0438:0x0200:0xd005:3641": "2",
+				"0x0438:0x0200:0xd00c:3912": "2"
 			}
 		},
 		"valueSize": 1,
@@ -4476,6 +4444,8 @@
 		"counter": 3,
 		"equivParameters": {
 			"0x001d": {
+				"0x001d:0x0037:0x0002:3829": "7",
+				"0x001d:0x0038:0x0002:3832": "7",
 				"0x001d:0x3301:0x0001:1956": "7",
 				"0x001d:0x3401:0x0001:1957": "7",
 				"0x001d:0x3601:0x0001:1959": "7"
@@ -4492,12 +4462,17 @@
 		"counter": 4,
 		"equivParameters": {
 			"0x0086": {
-				"0x0086:0x0103:0x0079:1963": "20"
+				"0x0086:0x0103:0x0079:1963": "20",
+				"0x0086:0x0103:0x0062:1829": "20",
+				"0x0086:0x0203:0x0062:1844": "20",
+				"0x0086:0x0003:0x0062:1851": "20",
+				"0x0086:0x0303:0x0062:2513": "20"
 			},
 			"0x016a": {
 				"0x016a:0x0103:0x0079:2301": "20",
 				"0x016a:0x0103:0x00a9:2738": "20",
-				"0x016a:0x1d03:0x0079:2768": "20"
+				"0x016a:0x1d03:0x0079:2768": "20",
+				"0x016a:0x1d03:0x0062:2607": "20"
 			}
 		},
 		"valueSize": 1,
@@ -4511,12 +4486,15 @@
 		"counter": 4,
 		"equivParameters": {
 			"0x0086": {
-				"0x0086:0x0103:0x0079:1963": "33"
+				"0x0086:0x0103:0x0079:1963": "33",
+				"0x0086:0x0003:0x0062:1851": "33",
+				"0x0086:0x0303:0x0062:2513": "33"
 			},
 			"0x016a": {
 				"0x016a:0x0103:0x0079:2301": "33",
 				"0x016a:0x0103:0x00a9:2738": "33",
-				"0x016a:0x1d03:0x0079:2768": "33"
+				"0x016a:0x1d03:0x0079:2768": "33",
+				"0x016a:0x1d03:0x0062:2607": "33"
 			}
 		},
 		"valueSize": 4,
@@ -5006,30 +4984,7 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-	"The Orientation of The On/Off On The Rocker Switch": {
-		"label": "The Orientation of The On/Off On The Rocker Switch",
-		"description": "The orientation of the on/off on the rocker switch can be inverted",
-		"counter": 5,
-		"equivParameters": {
-			"0x0184": {
-				"0x0184:0x4447:0x3034:2031": "4"
-			},
-			"0x0307": {
-				"0x0307:0x4447:0x3034:2043": "4"
-			},
-			"0x0315": {
-				"0x0315:0x4447:0x3034:2299": "4"
-			},
-			"0x000c": {
-				"0x000c:0x4447:0x3034:2563": "4",
-				"0x000c:0x4447:0x3036:2676": "4"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Motion Sensor Sensitivity": {
 		"label": "Motion Sensor Sensitivity",
 		"description": "1 – high 2 – medium 3 – low",
@@ -5101,11 +5056,20 @@
 		"description": "The orientation of the on/off on the rocker switch can be inverted by changing the following configuration with a controller(if supported)",
 		"counter": 2,
 		"equivParameters": {
+			"0x0184": {
+				"0x0184:0x4447:0x3034:2031": "4"
+			},
 			"0x0307": {
-				"0x0307:0x4447:0x3033:2040": "4"
+				"0x0307:0x4447:0x3033:2040": "4",
+				"0x0307:0x4447:0x3034:2043": "4"
+			},
+			"0x0315": {
+				"0x0315:0x4447:0x3034:2299": "4"
 			},
 			"0x000c": {
-				"0x000c:0x4447:0x3035:2675": "4"
+				"0x000c:0x4447:0x3035:2675": "4",
+				"0x000c:0x4447:0x3034:2563": "4",
+				"0x000c:0x4447:0x3036:2676": "4"
 			}
 		},
 		"valueSize": 1,
@@ -5417,8 +5381,24 @@
 		"counter": 2,
 		"equivParameters": {
 			"0x0063": {
+				"0x0063:0x4944:0x3235:3323": "6",
+				"0x0063:0x4944:0x3237:3352": "6",
+				"0x0063:0x4944:0x3236:3358": "6",
+				"0x0063:0x4944:0x3238:3360": "6",
+				"0x0063:0x4944:0x3333:3987": "6",
+				"0x0063:0x4944:0x3330:4002": "6",
+				"0x0063:0x4944:0x3339:4005": "6",
+				"0x0063:0x4944:0x3334:4190": "6",
 				"0x0063:0x494d:0x3033:2093": "18",
 				"0x0063:0x494d:0x3034:2108": "18"
+			},
+			"0x0039": {
+				"0x0039:0x4944:0x3235:3600": "6",
+				"0x0039:0x4944:0x3237:3601": "6",
+				"0x0039:0x5044:0x3038:3743": "6"
+			},
+			"0x041b": {
+				"0x041b:0x4944:0x3038:3750": "6"
 			}
 		},
 		"valueSize": 1,
@@ -5632,58 +5612,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Configure The Output Status After Re-power On It": {
-		"label": "Configure The Output Status After Re-power On It",
-		"description": "Configure the output status after re-power on it",
-		"counter": 18,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x006f:2095": "20",
-				"0x0086:0x0003:0x006f:2135": "20",
-				"0x0086:0x0103:0x0084:2136": "20",
-				"0x0086:0x0203:0x006f:2149": "20",
-				"0x0086:0x0103:0x0074:2208": "20",
-				"0x0086:0x0103:0x008c:2247": "20",
-				"0x0086:0x0103:0x008b:2306": "20",
-				"0x0086:0x0903:0x0084:3097": "20",
-				"0x0086:0x0903:0x0074:3098": "20",
-				"0x0086:0x0303:0x006f:3112": "20"
-			},
-			"0x016a": {
-				"0x016a:0x0103:0x006f:2258": "20",
-				"0x016a:0x0103:0x0074:2261": "20",
-				"0x016a:0x0103:0x0084:2275": "20",
-				"0x016a:0x0103:0x008b:2330": "20",
-				"0x016a:0x0103:0x008c:2333": "20",
-				"0x016a:0x1d03:0x006f:2765": "20"
-			},
-			"0x0311": {
-				"0x0311:0x0903:0x006f:3704": "20",
-				"0x0311:0x0903:0x008c:3716": "20"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Reset The Nano Dimmer": {
-		"label": "Reset The Nano Dimmer",
-		"description": "Reset the nano dimmer to factory default",
-		"counter": 4,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x006f:2095": "255",
-				"0x0086:0x0003:0x006f:2135": "255",
-				"0x0086:0x0203:0x006f:2149": "255",
-				"0x0086:0x0303:0x006f:3112": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"To Set Which Notification Would Be Sent to The Associated Devices (group 1)": {
 		"label": "To Set Which Notification Would Be Sent to The Associated Devices (group 1)",
 		"description": "To set which notification would be sent to the associated devices (group 1) when the state of nano dimmer’s load is changed",
@@ -5808,21 +5737,6 @@
 		"maxValue": 8,
 		"minValue": 0,
 		"defaultValue": 8
-	},
-	"Timeout Duration": {
-		"label": "Timeout Duration",
-		"description": "0=test(5s) 1=1 minute 5=5 minutes 15=15 minutes 30=30 minutes 0xff=disable timeout",
-		"counter": 2,
-		"equivParameters": {
-			"0x0063": {
-				"0x0063:0x494d:0x3034:2108": "1",
-				"0x0063:0x494d:0x3031:2126": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 255,
-		"minValue": 0,
-		"defaultValue": 5
 	},
 	"Enable/Disable Light Sensing": {
 		"label": "Enable/Disable Light Sensing",
@@ -6319,22 +6233,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Reset The Dual Nano Switch": {
-		"label": "Reset The Dual Nano Switch",
-		"description": "Reset the dual nano switch to factory default",
-		"counter": 3,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x0084:2136": "255",
-				"0x0086:0x0103:0x008c:2247": "255",
-				"0x0086:0x0903:0x0084:3097": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Set The On/Off Time of The LED When It is in Night Light Mode": {
 		"label": "Set The On/Off Time of The LED When It is in Night Light Mode",
 		"description": "Set the on/off time of the LED when it is in night light mode",
@@ -6715,6 +6614,10 @@
 				"0x0090:0x0006:0x0742:2377": "40",
 				"0x0090:0x0009:0x0238:3019": "40",
 				"0x0090:0x0003:0x1541:3101": "40"
+			},
+			"0x0063": {
+				"0x0063:0x4944:0x3333:3987": "84",
+				"0x0063:0x4944:0x3334:4190": "84"
 			}
 		},
 		"valueSize": 1,
@@ -6722,22 +6625,7 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-	"Reset The Nano Switch": {
-		"label": "Reset The Nano Switch",
-		"description": "Reset the nano switch to factory default",
-		"counter": 3,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x0074:2208": "255",
-				"0x0086:0x0103:0x008b:2306": "255",
-				"0x0086:0x0903:0x0074:3098": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Configure The State of LED When It is in 3 Modes": {
 		"label": "Configure The State of LED When It is in 3 Modes",
 		"description": "Configure the state of LED when it is in 3 modes (energy mode, momentary indicate mode, night light mode)",
@@ -6856,23 +6744,7 @@
 		"minValue": 0,
 		"defaultValue": 255
 	},
-	"On_off_behavior": {
-		"label": "On_off_behavior",
-		"description": "Behaviour after after a rapid sequence of basic on and basic off commands. the intention is to use a much longer timeout value than the time after a single on command which should then be followed by a short timeout value. the behaviour is almost the same as for parameter 10 (off_local_disable)   for values 1-209 - lamp is switched off and remains so until after a specified timeout once a new motion event (local or remote) is received",
-		"counter": 4,
-		"equivParameters": {
-			"0x0271": {
-				"0x0271:0x0001:0x1a74:2243": "13",
-				"0x0271:0x0001:0x1a73:2290": "13",
-				"0x0271:0x0001:0x1a75:2309": "13",
-				"0x0271:0x0002:0x1a72:2310": "13"
-			}
-		},
-		"valueSize": 2,
-		"maxValue": 255,
-		"minValue": 0,
-		"defaultValue": 204
-	},
+
 	"Motion_disable": {
 		"label": "Motion_disable",
 		"description": "Motion disable timeout after Basic Set to motion endpoint when the internal motion sensor is not used for evaluating the behaviour of the lamp and groups 2 and 3. events are, however, still transmitted to the lifeline, and the lamp can be controlled via remote motion sensors.  for values 1-209 - internal motion sensor is disabled for specified timeout after Basic Set 0x00 to motion endpoint",
@@ -6923,23 +6795,7 @@
 		"minValue": 0,
 		"defaultValue": 2
 	},
-	"Reset The Smart Dimmer 6": {
-		"label": "Reset The Smart Dimmer 6",
-		"description": "Reset the smart dimmer 6",
-		"counter": 2,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x0063:2246": "255"
-			},
-			"0x0311": {
-				"0x0311:0x0903:0x006f:3704": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Overheat Protection": {
 		"label": "Overheat Protection",
 		"description": "Output load will be turned off automatically after 30 seconds and if the temperature of product inside exceeds 100 ℃",
@@ -7028,40 +6884,7 @@
 		"minValue": 0,
 		"defaultValue": 3
 	},
-	"Reset The Dual In-wall Switch": {
-		"label": "Reset The Dual In-wall Switch",
-		"description": "Reset the dual in-wall switch to factory default",
-		"counter": 2,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x0103:0x0084:2275": "255",
-				"0x016a:0x0103:0x008c:2333": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Reset The Mote": {
-		"label": "Reset The Mote",
-		"description": "Reset the mote to factory default",
-		"counter": 4,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x0102:0x0082:2276": "255",
-				"0x016a:0x1d02:0x0082:2767": "255"
-			},
-			"0x0086": {
-				"0x0086:0x0302:0x0082:3153": "255",
-				"0x0086:0x0902:0x0082:3264": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Off_behaviour": {
 		"label": "Off_behaviour",
 		"description": "Behaviour after basic off ( and similar commands ). if a transition ( even with zero change ) with a non-default duration is to be processed, the transition cannot be interrupted by any motion event in any case.  for values 1-209 - lamp is switched off and remains so until after a specified timeout once a new motion event (local or remote) is received",
@@ -7084,9 +6907,10 @@
 		"counter": 3,
 		"equivParameters": {
 			"0x0271": {
-				"0x0271:0x0001:0x1a73:2290": "14",
-				"0x0271:0x0001:0x1a75:2309": "14",
-				"0x0271:0x0002:0x1a72:2310": "14"
+				"0x0271:0x0001:0x1a73:2290": "13",
+				"0x0271:0x0001:0x1a75:2309": "13",
+				"0x0271:0x0002:0x1a72:2310": "13",
+				"0x0271:0x0001:0x1a74:2243": "13"
 			}
 		},
 		"valueSize": 2,
@@ -7236,47 +7060,51 @@
 		"minValue": 0,
 		"defaultValue": 204
 	},
-	"Value of Basic On Command Sent to 2nd Association Group": {
-		"label": "Value of Basic On Command Sent to 2nd Association Group",
-		"description": "This parameter defines the value of basic on command sent to devices in 2nd association group after the co alarm activation. 1-99 - forcing level of associated devices  255 - setting associated devices to the last remembered state or turning them on",
-		"counter": 2,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x1201:0x1000:2336": "12"
-			}
-		},
-		"valueSize": 2,
-		"maxValue": 255,
-		"minValue": 0,
-		"defaultValue": 255
-	},
-	"Power Report Frequency": {
-		"label": "Power Report Frequency",
-		"description": "The interval of sending power report to association device (group lifeline)",
-		"counter": 6,
-		"equivParameters": {
-			"0x0208": {
-				"0x0208:0x0101:0x000d:2341": "171",
-				"0x0208:0x0101:0x001b:3025": "171",
-				"0x0208:0x0100:0x0019:3202": "171",
-				"0x0208:0x0100:0x0022:3697": "171",
-				"0x0208:0x0101:0x0016:3722": "171"
-			},
-			"0x027a": {
-				"0x027a:0x0101:0x000d:2517": "171"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 2678400,
-		"minValue": 0,
-		"defaultValue": 30
-	},
 	"Overload Protection": {
 		"label": "Overload Protection",
 		"description": "Smart switch keep detecting the load power, once the ac current exceeds 16.5a for more than 5s, smart switch's relay will turn off",
 		"counter": 6,
 		"equivParameters": {
+			"0x0086": {
+				"0x0086:0x0103:0x004b:1053": "3",
+				"0x0086:0x0203:0x004b:1056": "3",
+				"0x0086:0x0203:0x004e:1089": "3",
+				"0x0086:0x0103:0x0060:1312": "3",
+				"0x0086:0x001b:0x0048:1416": "3",
+				"0x0086:0x0003:0x0063:1519": "3",
+				"0x0086:0x0103:0x006f:2095": "3",
+				"0x0086:0x0003:0x006f:2135": "3",
+				"0x0086:0x0103:0x0084:2136": "3",
+				"0x0086:0x0203:0x006f:2149": "3",
+				"0x0086:0x0103:0x0074:2208": "3",
+				"0x0086:0x0103:0x0063:2246": "3",
+				"0x0086:0x0303:0x0060:2515": "3",
+				"0x0086:0x0103:0x0060:3093": "3",
+				"0x0086:0x0903:0x0084:3097": "3",
+				"0x0086:0x0903:0x0074:3098": "3",
+				"0x0086:0x0003:0x0060:3104": "3",
+				"0x0086:0x0303:0x006f:3112": "3",
+				"0x0086:0x0203:0x0060:3119": "3",
+				"0x0086:0x0903:0x004e:3265": "3",
+				"0x0086:0x0103:0x004e:998": "3"
+			},
+			"0x016a": {
+				"0x016a:0x0103:0x0060:1549": "3",
+				"0x016a:0x0103:0x006f:2258": "3",
+				"0x016a:0x0103:0x0074:2261": "3",
+				"0x016a:0x0103:0x0084:2275": "3",
+				"0x016a:0x0203:0x0060:2366": "3",
+				"0x016a:0x0003:0x0060:2375": "3",
+				"0x016a:0x1d03:0x0091:2584": "3",
+				"0x016a:0x1d03:0x0091:2619": "3",
+				"0x016a:0x1d03:0x006f:2765": "3"
+			},
+			"0x0311": {
+				"0x0311:0x0903:0x006f:3704": "3"
+			},
 			"0x0208": {
+				"0x0208:0x0101:0x0005:1789": "20",
+				"0x0208:0x0101:0x000a:1854": "20",
 				"0x0208:0x0101:0x000d:2341": "20",
 				"0x0208:0x0101:0x001b:3025": "20",
 				"0x0208:0x0100:0x0019:3202": "20",
@@ -7285,6 +7113,18 @@
 			},
 			"0x027a": {
 				"0x027a:0x0101:0x000d:2517": "20"
+			},
+			"0x0300": {
+				"0x0300:0x0200:0x000b:2722": "1"
+			},
+			"0x0176": {
+				"0x0176:0x0003:0x0003:2892": "1"
+			},
+			"0x0384": {
+				"0x0384:0x0200:0x000b:3007": "1"
+			},
+			"0x0403": {
+				"0x0403:0x0003:0x0003:3144": "1"
 			}
 		},
 		"valueSize": 1,
@@ -7348,47 +7188,6 @@
 		"maxValue": 3,
 		"minValue": 0,
 		"defaultValue": 1
-	},
-	"Enable/Disable Configuration Locked": {
-		"label": "Enable/Disable Configuration Locked",
-		"description": "Enable/disable configuration locked",
-		"counter": 9,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x0203:0x0060:2366": "252",
-				"0x016a:0x0003:0x0060:2375": "252",
-				"0x016a:0x1d03:0x0091:2584": "252",
-				"0x016a:0x1d03:0x0091:2619": "252"
-			},
-			"0x0086": {
-				"0x0086:0x0303:0x0060:2515": "252",
-				"0x0086:0x0103:0x0060:3093": "252",
-				"0x0086:0x0003:0x0060:3104": "252",
-				"0x0086:0x0203:0x0060:3119": "252",
-				"0x0086:0x0903:0x004e:3265": "252"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Reset The Plug": {
-		"label": "Reset The Plug",
-		"description": "Reset the plug to factory default",
-		"counter": 4,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x0203:0x0060:2366": "255",
-				"0x016a:0x0003:0x0060:2375": "255",
-				"0x016a:0x1d03:0x0091:2584": "255",
-				"0x016a:0x1d03:0x0091:2619": "255"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
 	},
 	"To Set Which Notification Would Be Sent to The Associated Nodes in Association Group 1": {
 		"label": "To Set Which Notification Would Be Sent to The Associated Nodes in Association Group 1",
@@ -7904,9 +7703,12 @@
 		"counter": 3,
 		"equivParameters": {
 			"0x0086": {
+				"0x0086:0x0302:0x0082:3153": "1",
+				"0x0086:0x0902:0x0082:3264": "1",
 				"0x0086:0x0102:0x007a:2407": "86"
 			},
 			"0x016a": {
+				"0x016a:0x1d02:0x0082:2767": "1",
 				"0x016a:0x0102:0x007a:2488": "86",
 				"0x016a:0x1d02:0x007a:2758": "86"
 			}
@@ -8053,6 +7855,10 @@
 				"0x0109:0x2021:0x2101:2479": "1",
 				"0x0109:0x201f:0x1f10:2480": "1",
 				"0x0109:0x2021:0x2112:3806": "1"
+			},
+			"0x0411": {
+				"0x0411:0x0001:0x2111:3474": "2",
+				"0x0411:0x0001:0x2112:3889": "2"
 			}
 		},
 		"valueSize": 1,
@@ -8115,33 +7921,32 @@
 				"0x0086:0x0103:0x0060:3093": "255",
 				"0x0086:0x0003:0x0060:3104": "255",
 				"0x0086:0x0203:0x0060:3119": "255",
-				"0x0086:0x0903:0x004e:3265": "255"
+				"0x0086:0x0903:0x004e:3265": "255",
+				"0x0086:0x0103:0x0084:2136": "255",
+				"0x0086:0x0103:0x008c:2247": "255",
+				"0x0086:0x0903:0x0084:3097": "255",
+				"0x0086:0x0103:0x008d:3075": "255",
+				"0x0086:0x0303:0x008d:3132": "255",
+				"0x0086:0x0903:0x008d:3269": "255",
+				"0x0086:0x0103:0x0063:2246": "255",
+				"0x0086:0x0103:0x0074:2208": "255",
+				"0x0086:0x0103:0x008b:2306": "255",
+				"0x0086:0x0903:0x0074:3098": "255",
+				"0x0086:0x0103:0x006f:2095": "255",
+				"0x0086:0x0003:0x006f:2135": "255",
+				"0x0086:0x0203:0x006f:2149": "255",
+				"0x0086:0x0303:0x006f:3112": "255"
+			},
+			"0x0311": {
+				"0x0311:0x0903:0x006f:3704": "255"
+			},
+			"0x016a": {
+				"0x016a:0x0103:0x0084:2275": "255",
+				"0x016a:0x0103:0x008c:2333": "255"
 			}
 		},
 		"valueSize": 1,
 		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Enable/Disable The Parameter 91 And 92": {
-		"label": "Enable/Disable The Parameter 91 And 92",
-		"description": "Enable/disable the parameter 91 and 92",
-		"counter": 7,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0303:0x0060:2515": "90",
-				"0x0086:0x0103:0x0060:3093": "90",
-				"0x0086:0x0003:0x0060:3104": "90",
-				"0x0086:0x0203:0x0060:3119": "90",
-				"0x0086:0x0903:0x004e:3265": "90"
-			},
-			"0x016a": {
-				"0x016a:0x1d03:0x0091:2584": "90",
-				"0x016a:0x1d03:0x0091:2619": "90"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
 		"minValue": 0,
 		"defaultValue": 0
 	},
@@ -8441,9 +8246,11 @@
 		"counter": 3,
 		"equivParameters": {
 			"0x016a": {
+				"0x016a:0x0102:0x0064:1534": "102",
 				"0x016a:0x1d02:0x0064:2592": "102"
 			},
 			"0x0086": {
+				"0x0086:0x0102:0x004a:1163": "102",
 				"0x0086:0x0a02:0x0064:2694": "102"
 			},
 			"0x037c": {
@@ -8661,35 +8468,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Enable/Disable The Configuration Command": {
-		"label": "Enable/Disable The Configuration Command",
-		"description": "Lock/unlock all configuration parameters",
-		"counter": 10,
-		"equivParameters": {
-			"0x0300": {
-				"0x0300:0x0200:0x0008:2623": "254",
-				"0x0300:0x0200:0x000b:2722": "254"
-			},
-			"0x0176": {
-				"0x0176:0x0003:0x0003:2892": "254"
-			},
-			"0x0384": {
-				"0x0384:0x0200:0x0008:2909": "254",
-				"0x0384:0x0200:0x000b:3007": "254"
-			},
-			"0x0208": {
-				"0x0208:0x0101:0x001b:3025": "254",
-				"0x0208:0x0100:0x0019:3202": "254",
-				"0x0208:0x0100:0x0022:3697": "254",
-				"0x0208:0x0101:0x0016:3722": "254",
-				"0x0208:0x0202:0x000b:4011": "254"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"Set Flooding Alarm Interval (minute)": {
 		"label": "Set Flooding Alarm Interval (minute)",
 		"description": "",
@@ -8771,25 +8549,6 @@
 			},
 			"0x0159": {
 				"0x0159:0x0002:0x0052:2795": "15"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Restore On/Off Status For Q⬆ Load After Power Failure": {
-		"label": "Restore On/Off Status For Q⬆ Load After Power Failure",
-		"description": "This parameter determines if on/off status is saved and restored for the load q⬆ after power failure",
-		"counter": 4,
-		"equivParameters": {
-			"0x0175": {
-				"0x0175:0x0002:0x0052:2645": "30"
-			},
-			"0x0159": {
-				"0x0159:0x0002:0x0052:2795": "30",
-				"0x0159:0x0001:0x0055:3381": "30",
-				"0x0159:0x0001:0x0055:4211": "30"
 			}
 		},
 		"valueSize": 1,
@@ -9256,21 +9015,6 @@
 		"minValue": -128,
 		"defaultValue": 0
 	},
-	"Temperature Reporting Unit": {
-		"label": "Temperature Reporting Unit",
-		"description": "0: celcius 1: fahrenheit",
-		"counter": 2,
-		"equivParameters": {
-			"0x019a": {
-				"0x019a:0x0003:0x000a:2737": "5",
-				"0x019a:0x0004:0x000b:3901": "5"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"Color Index Configuration When The LED Strip is in Multi Color Mode": {
 		"label": "Color Index Configuration When The LED Strip is in Multi Color Mode",
 		"description": "Color index configuration when the LED strip is in multi color mode",
@@ -9307,42 +9051,7 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-	"Enable/Disable The Touch Sound": {
-		"label": "Enable/Disable The Touch Sound",
-		"description": "Enable/disable the touch sound",
-		"counter": 3,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x1d02:0x0082:2767": "1"
-			},
-			"0x0086": {
-				"0x0086:0x0302:0x0082:3153": "1",
-				"0x0086:0x0902:0x0082:3264": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
-	"Enable/Disable to Lock All Configuration Parameters": {
-		"label": "Enable/Disable to Lock All Configuration Parameters",
-		"description": "Enable/disable to lock all configuration parameters",
-		"counter": 3,
-		"equivParameters": {
-			"0x016a": {
-				"0x016a:0x1d02:0x0082:2767": "252"
-			},
-			"0x0086": {
-				"0x0086:0x0302:0x0082:3153": "252",
-				"0x0086:0x0902:0x0082:3264": "252"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Enable/ Disable to Blink The Orange LED When Wallmote Sends Out Wake Up Notification": {
 		"label": "Enable/ Disable to Blink The Orange LED When Wallmote Sends Out Wake Up Notification",
 		"description": "Enable/ disable to blink the orange LED when wallmote sends out wake up notification",
@@ -9557,26 +9266,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Setting Time For Sending Meter Report (voltage)": {
-		"label": "Setting Time For Sending Meter Report (voltage)",
-		"description": "The interval of sending meter report (voltage) to association device (group lifeline)",
-		"counter": 3,
-		"equivParameters": {
-			"0x0176": {
-				"0x0176:0x0003:0x0003:2892": "103"
-			},
-			"0x0384": {
-				"0x0384:0x0200:0x000b:3007": "103"
-			},
-			"0x0403": {
-				"0x0403:0x0003:0x0003:3144": "103"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 2678400,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"Led Load Indicator Mode Selection": {
 		"label": "Led Load Indicator Mode Selection",
 		"description": "Configure LED display mode to prevent light pollution at night",
@@ -9669,22 +9358,6 @@
 		"maxValue": 255,
 		"minValue": 0,
 		"defaultValue": 255
-	},
-	"Led Frame Color At The Z-Wave Network Alarm Detection": {
-		"label": "Led Frame Color At The Z-Wave Network Alarm Detection",
-		"description": "This parameter defines the illumination color in case of Z-Wave alarm",
-		"counter": 3,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x1801:0x1000:2899": "43",
-				"0x010f:0x1701:0xa000:3193": "43",
-				"0x010f:0x1501:0x1000:3606": "43"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 9,
-		"minValue": 0,
-		"defaultValue": 2
 	},
 	"Set 101 ~ 104 to Default": {
 		"label": "Set 101 ~ 104 to Default",
@@ -9779,26 +9452,6 @@
 		},
 		"valueSize": 1,
 		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Saving Load State Before Power Failure": {
-		"label": "Saving Load State Before Power Failure",
-		"description": "Saving load state before power failure",
-		"counter": 5,
-		"equivParameters": {
-			"0x0330": {
-				"0x0330:0x0200:0xd005:2918": "2",
-				"0x0330:0x0201:0xd00c:3325": "2",
-				"0x0330:0x0201:0xd00f:3332": "2"
-			},
-			"0x0438": {
-				"0x0438:0x0200:0xd005:3641": "2",
-				"0x0438:0x0200:0xd00c:3912": "2"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
 		"minValue": 0,
 		"defaultValue": 0
 	},
@@ -10159,22 +9812,7 @@
 		"minValue": 0,
 		"defaultValue": 60
 	},
-	"Reset The Nano Shutter": {
-		"label": "Reset The Nano Shutter",
-		"description": "Reset the nano shutter to factory default",
-		"counter": 3,
-		"equivParameters": {
-			"0x0086": {
-				"0x0086:0x0103:0x008d:3075": "255",
-				"0x0086:0x0303:0x008d:3132": "255",
-				"0x0086:0x0903:0x008d:3269": "255"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 1431655765,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Set The Operation Mode of External Switch": {
 		"label": "Set The Operation Mode of External Switch",
 		"description": "Set the operation mode of external switch.  note: for the description of operation mode 1 or 2, please refer to the user manual",
@@ -10235,42 +9873,6 @@
 		},
 		"valueSize": 1,
 		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Restores State After Power Failure": {
-		"label": "Restores State After Power Failure",
-		"description": "Restores state after power failure",
-		"counter": 23,
-		"equivParameters": {
-			"0x0312": {
-				"0x0312:0xa000:0xa003:3127": "1",
-				"0x0312:0xa000:0xa004:3128": "1",
-				"0x0312:0xaa00:0xaa01:3597": "8",
-				"0x0312:0xa000:0xaa02:3602": "8",
-				"0x0312:0xa000:0xa001:3604": "8",
-				"0x0312:0xff01:0xff03:3609": "8",
-				"0x0312:0xff01:0xff04:3610": "8",
-				"0x0312:0xa000:0xa002:3615": "8",
-				"0x0312:0xff01:0xff01:3628": "8",
-				"0x0312:0xff01:0xff02:3629": "8",
-				"0x0312:0xee00:0xee01:3981": "8",
-				"0x0312:0xee00:0xee02:3993": "8",
-				"0x0312:0xee00:0xee03:3996": "8",
-				"0x0312:0xee00:0xee04:4007": "8",
-				"0x0312:0xbb00:0xbb01:4065": "8",
-				"0x0312:0xbb00:0xbb02:4078": "8",
-				"0x0312:0xee00:0xee01:4125": "8",
-				"0x0312:0xff00:0xff0d:4137": "8",
-				"0x0312:0xee00:0xee03:4138": "8",
-				"0x0312:0x0004:0xee02:4139": "8",
-				"0x0312:0xee00:0xee04:4140": "8",
-				"0x0312:0xff07:0xff03:4254": "8",
-				"0x0312:0xac01:0x4002:4294": "8"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
 		"minValue": 0,
 		"defaultValue": 0
 	},
@@ -10365,26 +9967,6 @@
 		"maxValue": 99,
 		"minValue": 0,
 		"defaultValue": 0
-	},
-	"On Off Status After Power Failure": {
-		"label": "On Off Status After Power Failure",
-		"description": "Set the on off status for the switch after power failure",
-		"counter": 7,
-		"equivParameters": {
-			"0x027a": {
-				"0x027a:0xa000:0xa001:3147": "5",
-				"0x027a:0xaa00:0xaa01:3667": "8",
-				"0x027a:0x0902:0x2000:3720": "1",
-				"0x027a:0x7000:0xa001:4103": "8",
-				"0x027a:0x7000:0xa006:4104": "8",
-				"0x027a:0x7000:0xa002:4108": "8",
-				"0x027a:0x7000:0xa007:4109": "8"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 2
 	},
 	"To Configure Which Report Will Be Sent When Pressing The Buttons": {
 		"label": "To Configure Which Report Will Be Sent When Pressing The Buttons",
@@ -10598,25 +10180,6 @@
 		"maxValue": 1,
 		"minValue": 0,
 		"defaultValue": 0
-	},
-	"Led Indicator Mode": {
-		"label": "Led Indicator Mode",
-		"description": "Choose if you want the LED indicators next to each outlet to come on when power is on or off, or if you want to disable them",
-		"counter": 4,
-		"equivParameters": {
-			"0x027a": {
-				"0x027a:0xa000:0xa003:3192": "17",
-				"0x027a:0x7000:0xf001:4114": "1"
-			},
-			"0x0312": {
-				"0x0312:0x7000:0xf001:4080": "1",
-				"0x0312:0x0924:0xd001:4246": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 3,
-		"minValue": 0,
-		"defaultValue": 1
 	},
 	"Periodic Power Reporting": {
 		"label": "Periodic Power Reporting",
@@ -11352,35 +10915,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Dim Up/Down Rate": {
-		"label": "Dim Up/Down Rate",
-		"description": "Adjust the speed at which the ramps to a specific value other than 0 and ff",
-		"counter": 12,
-		"equivParameters": {
-			"0x0063": {
-				"0x0063:0x4944:0x3235:3323": "6",
-				"0x0063:0x4944:0x3237:3352": "6",
-				"0x0063:0x4944:0x3236:3358": "6",
-				"0x0063:0x4944:0x3238:3360": "6",
-				"0x0063:0x4944:0x3333:3987": "6",
-				"0x0063:0x4944:0x3330:4002": "6",
-				"0x0063:0x4944:0x3339:4005": "6",
-				"0x0063:0x4944:0x3334:4190": "6"
-			},
-			"0x0039": {
-				"0x0039:0x4944:0x3235:3600": "6",
-				"0x0039:0x4944:0x3237:3601": "6",
-				"0x0039:0x5044:0x3038:3743": "6"
-			},
-			"0x041b": {
-				"0x041b:0x4944:0x3038:3750": "6"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Wiring Type": {
 		"label": "Wiring Type",
 		"description": "Wiring type  note: this parameter is read only",
@@ -12156,21 +11691,7 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Temperature Unit (c/F)": {
-		"label": "Temperature Unit (c/F)",
-		"description": "Temperature unit (c/f)",
-		"counter": 2,
-		"equivParameters": {
-			"0x0411": {
-				"0x0411:0x0001:0x2111:3474": "2",
-				"0x0411:0x0001:0x2112:3889": "2"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
+
 	"Active Power Reports": {
 		"label": "Active Power Reports",
 		"description": "The parameter defines the power level change that will result in a new power report being sent. the value is a percentage of the previous report",
@@ -12420,59 +11941,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Parameter 2": {
-		"label": "Parameter 2",
-		"description": "Switch 2 type",
-		"counter": 7,
-		"equivParameters": {
-			"0x0060": {
-				"0x0060:0x0004:0x000e:3633": "2"
-			},
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "34",
-				"0x010f:0x0103:0x00ba:3874": "34",
-				"0x010f:0x0204:0x1000:3980": "21"
-			},
-			"0x0299": {
-				"0x0299:0x0002:0x1a90:3677": "2",
-				"0x0299:0x0005:0x1a93:3778": "2",
-				"0x0299:0x0003:0x1a91:3779": "2",
-				"0x0299:0x0004:0x1a92:3798": "2"
-			},
-			"0x0312": {
-				"0x0312:0xa000:0xa00a:3749": "2"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Parameter 6": {
-		"label": "Parameter 6",
-		"description": "Set whether to remember the last status of relay 2",
-		"counter": 4,
-		"equivParameters": {
-			"0x0060": {
-				"0x0060:0x0004:0x000e:3633": "6"
-			},
-			"0x041b": {
-				"0x041b:0x5044:0x3033:3825": "6"
-			},
-			"0x0299": {
-				"0x0299:0x0002:0x1a90:3677": "6",
-				"0x0299:0x0004:0x1a92:3798": "6"
-			},
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "43",
-				"0x010f:0x0103:0x00ba:3874": "43"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
 	"Choose Mosfet Driving Type": {
 		"label": "Choose Mosfet Driving Type",
 		"description": "Choose mosfet driving type",
@@ -12517,28 +11985,6 @@
 		"maxValue": 360,
 		"minValue": 5,
 		"defaultValue": 60
-	},
-	"Parameter 4": {
-		"label": "Parameter 4",
-		"description": "Operations mode for push buttons controlling the output",
-		"counter": 5,
-		"equivParameters": {
-			"0x0299": {
-				"0x0299:0x0002:0x1a90:3677": "4",
-				"0x0299:0x0003:0x1a91:3779": "4",
-				"0x0299:0x0004:0x1a92:3798": "4"
-			},
-			"0x041b": {
-				"0x041b:0x4952:0x3036:3835": "4"
-			},
-			"0x0330": {
-				"0x0330:0x0200:0xd013:4289": "4"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
 	},
 	"Battery Report Interval": {
 		"label": "Battery Report Interval",
@@ -12748,63 +12194,6 @@
 		"maxValue": 2,
 		"minValue": 0,
 		"defaultValue": 1
-	},
-	"Parameter 1": {
-		"label": "Parameter 1",
-		"description": "Enable/disable central scene notifications for 2x-5x button presses",
-		"counter": 10,
-		"equivParameters": {
-			"0x0299": {
-				"0x0299:0x0005:0x1a93:3778": "1",
-				"0x0299:0x0003:0x1a91:3779": "1",
-				"0x0299:0x0004:0x1a92:3798": "1"
-			},
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "33",
-				"0x010f:0x0103:0x00ba:3874": "33"
-			},
-			"0x0447": {
-				"0x0447:0x0111:0x1102:3909": "1",
-				"0x0447:0x0111:0x1201:3919": "1",
-				"0x0447:0x0111:0x1101:3922": "1"
-			},
-			"0x0440": {
-				"0x0440:0x0002:0x0051:3917": "1"
-			},
-			"0x0194": {
-				"0x0194:0x0103:0x0050:3929": "38"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
-	},
-	"Parameter 3": {
-		"label": "Parameter 3",
-		"description": "Interval of active energy meter reports in minutes",
-		"counter": 6,
-		"equivParameters": {
-			"0x0299": {
-				"0x0299:0x0003:0x1a91:3779": "3",
-				"0x0299:0x0004:0x1a92:3798": "3"
-			},
-			"0x041b": {
-				"0x041b:0x5044:0x3033:3825": "3",
-				"0x041b:0x5052:0x3033:3827": "3",
-				"0x041b:0x4952:0x3036:3835": "3"
-			},
-			"0x0194": {
-				"0x0194:0x0103:0x0050:3929": "80"
-			},
-			"0x0330": {
-				"0x0330:0x0200:0xd013:4289": "3"
-			}
-		},
-		"valueSize": 2,
-		"maxValue": 30240,
-		"minValue": 0,
-		"defaultValue": 60
 	},
 	"Auto Turn-off Timer For Relay 1": {
 		"label": "Auto Turn-off Timer For Relay 1",
@@ -13046,88 +12435,6 @@
 		"minValue": 0,
 		"defaultValue": 0
 	},
-	"Locator Status": {
-		"label": "Locator Status",
-		"description": "Locator LED status",
-		"counter": 2,
-		"equivParameters": {
-			"0x001d": {
-				"0x001d:0x0037:0x0002:3829": "7",
-				"0x001d:0x0038:0x0002:3832": "7"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 255,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Parameter 19": {
-		"label": "Parameter 19",
-		"description": "Alternate exclusion",
-		"counter": 3,
-		"equivParameters": {
-			"0x041b": {
-				"0x041b:0x4f50:0x3035:3833": "19",
-				"0x041b:0x4952:0x3036:3835": "19"
-			},
-			"0x0330": {
-				"0x0330:0x0200:0xd004:4302": "19"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Parameter 10": {
-		"label": "Parameter 10",
-		"description": "This parameter allows to check motor factory data: gearbox ratio and motor nominal speed(read-only)",
-		"counter": 2,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "166",
-				"0x010f:0x0103:0x00ba:3874": "166"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 2147483647,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Parameter 12": {
-		"label": "Parameter 12",
-		"description": "Get motor factory data: obstacle detection max level, battery motor and soft start/stop max(read-only)",
-		"counter": 2,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "168",
-				"0x010f:0x0103:0x00ba:3874": "168"
-			}
-		},
-		"valueSize": 4,
-		"maxValue": 2147483647,
-		"minValue": 0,
-		"defaultValue": 0
-	},
-	"Parameter 8": {
-		"label": "Parameter 8",
-		"description": "Set a number of moves to start identification. note: when wiggle ends, an unsolicited report to lifeline destination with t he value 0 will be sent.  if module receives control command in cc multilevel switch/basic automatically stops the wiggle",
-		"counter": 3,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x0003:0x00ba:3839": "70",
-				"0x010f:0x0103:0x00ba:3874": "70"
-			},
-			"0x0330": {
-				"0x0330:0x0200:0xd013:4289": "8",
-				"0x0330:0x0200:0xd004:4302": "8"
-			}
-		},
-		"valueSize": 2,
-		"maxValue": 255,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"Reset Parameter": {
 		"label": "Reset Parameter",
 		"description": "0 – nothing happens 0x55555555 – completely factory reset sensor and send device reset locally notification. all other values – reset all parameter settings to their default settings",
@@ -13264,21 +12571,6 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-	"First Channel – Reaction to Input Change in Delayed/ Auto Off Modes": {
-		"label": "First Channel – Reaction to Input Change in Delayed/ Auto Off Modes",
-		"description": "This parameter determines how the device reacts when changing state of s1 input in timed modes for first channel",
-		"counter": 2,
-		"equivParameters": {
-			"0x010f": {
-				"0x010f:0x0404:0x1000:3949": "152",
-				"0x010f:0x0204:0x1000:3980": "152"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 2,
-		"minValue": 0,
-		"defaultValue": 0
-	},
 	"S1 Input – Switch On Value Sent to 2nd Association Group": {
 		"label": "S1 Input – Switch On Value Sent to 2nd Association Group",
 		"description": "This parameter defines value sent with switch on command to devices in 2nd association group when using s1 input",
@@ -13369,21 +12661,7 @@
 		"minValue": 0,
 		"defaultValue": 1
 	},
-	"Reset Factory Default": {
-		"label": "Reset Factory Default",
-		"description": "Reset switch to factory defaults",
-		"counter": 2,
-		"equivParameters": {
-			"0x0063": {
-				"0x0063:0x4944:0x3333:3987": "84",
-				"0x0063:0x4944:0x3334:4190": "84"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 0
-	},
+
 	"Handing Control": {
 		"label": "Handing Control",
 		"description": "The configuration parameter 10 is a read/write parameter with a one-byte field. when this parameter is read, it will return the handing of the lock. when this parameter is written, it will run a handing operation. when written with a value of 0x01, it will cause the lock to cycle through locking and unlocking until it determines the correct handing. it is suggested that this operation occur while the door is opened so that no obstructions will be in the way for the operation. after the completion of the handing process, a configuration report message will be sent back to the requestor. it will contain a non-zero value for success or a zero value for failure",
@@ -13659,23 +12937,6 @@
 		"maxValue": 3,
 		"minValue": 0,
 		"defaultValue": 0
-	},
-	"Led Indicator Status": {
-		"label": "Led Indicator Status",
-		"description": "Synchronization of load power and LED indicator",
-		"counter": 4,
-		"equivParameters": {
-			"0x0447": {
-				"0x0447:0x000e:0x1106:4110": "1",
-				"0x0447:0x000e:0x1108:4112": "1",
-				"0x0447:0x000e:0x1107:4121": "1",
-				"0x0447:0x000e:0x1202:4180": "1"
-			}
-		},
-		"valueSize": 1,
-		"maxValue": 1,
-		"minValue": 0,
-		"defaultValue": 1
 	},
 	"Child Lockout Enable": {
 		"label": "Child Lockout Enable",
