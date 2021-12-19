@@ -21,8 +21,11 @@ import { isArray, isObject } from "alcalzone-shared/typeguards";
 import { AssertionError, ok } from "assert";
 import axios from "axios";
 import * as child from "child_process";
+import * as Colors from "colors";
 import * as JSONC from "comment-json";
+import * as Diff from "diff";
 import * as fs from "fs-extra";
+import levenshtein from "js-levenshtein";
 import * as JSON5 from "json5";
 import * as path from "path";
 import { compare } from "semver";
@@ -1523,9 +1526,54 @@ async function parseZWAProduct(
 	await fs.writeFile(fileNameAbsolute, output, "utf8");
 }
 
+function degreeOfSimilarity(
+	originalParam: Record<string, unknown>,
+	testParam: Record<string, unknown>,
+) {
+	if (!originalParam.label || !testParam.label) {
+		return "error";
+	}
+
+	const normalizedDistance =
+		levenshtein(originalParam.label, testParam.label) /
+		Math.max(originalParam.label.length, testParam.label.length);
+
+	if (
+		originalParam.label.toLowerCase() === testParam.label.toLowerCase() &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue
+	) {
+		return "identical";
+	} else if (
+		normalizedDistance < 0.15 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "medium";
+	} else if (
+		normalizedDistance < 0.15 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.valueSize === testParam.valueSize
+	) {
+		return "medium";
+	} else if (
+		normalizedDistance < 0.15 &&
+		originalParam.minValue === testParam.minValue &&
+		originalParam.maxValue === testParam.maxValue &&
+		originalParam.defaultValue === testParam.defaultValue
+	) {
+		return "medium";
+	} else {
+		return "low";
+	}
+}
+
 async function maintenanceParse(): Promise<void> {
 	// Parse json files in the zwaTempDir
-	const zwaData = [];
+	let zwaData = [];
 
 	// Load the zwa files
 	await fs.ensureDir(zwaTempDir);
@@ -1541,77 +1589,269 @@ async function maintenanceParse(): Promise<void> {
 			await fs.unlink(file);
 		}
 	}
-
-	// Build the list of device files
-	const configFiles = await enumFilesRecursive(processedDir, (file) =>
-		file.endsWith(".json"),
-	);
-	for (const file of configFiles) {
-		const j = await fs.readFile(file, "utf8");
-
-		let jsonData;
-		try {
-			jsonData = JSONC.parse(j);
-		} catch (e) {
-			console.log(
-				`Error processing: ${file} - ${getErrorMessage(e, true)}`,
-			);
+	zwaData = combineDeviceFiles(zwaData);
+	//zwaData = sanitizeFields(zwaData);
+	const paramData = [];
+	const duplicateParams = {};
+	// Build object of all parameters, with counts
+	for (const file of zwaData) {
+		if (
+			!file.ProductId ||
+			!file.ConfigurationParameters ||
+			file.ConfigurationParameters.length === 0
+		) {
+			continue;
 		}
 
-		const includedZwaFiles: number[] = [];
-
-		try {
-			for (const device of jsonData.devices) {
-				if (isArray(device.zwaveAllianceId)) {
-					includedZwaFiles.push(...device.zwaveAllianceId);
-				} else if (device.zwaveAllianceId) {
-					includedZwaFiles.push(device.zwaveAllianceId);
-				}
+		for (const param of file.ConfigurationParameters) {
+			const parsedParam = {};
+			// By default, update existing properties with new descriptions
+			const manufacturerIdHex = file.ManufacturerId.replace(/^0x/, "");
+			parsedParam.manufacturer = formatId(manufacturerIdHex);
+			parsedParam.ProductId = file.ProductId;
+			parsedParam.ProductTypeId = file.ProductTypeId;
+			parsedParam.origin = file.Id;
+			parsedParam["#"] = param.ParameterNumber.toString();
+			parsedParam.label = param.Name;
+			parsedParam.label = normalizeLabel(parsedParam.label);
+			parsedParam.description =
+				param.ConfigurationParameterValues.length > 1 // Sometimes values options are described and not presented as options
+					? param.Description
+					: param.ConfigurationParameterValues[0].Description;
+			parsedParam.description = normalizeDescription(
+				parsedParam.description,
+			);
+			parsedParam.valueSize = param.Size;
+			parsedParam.minValue = param.minValue;
+			parsedParam.maxValue = param.maxValue;
+			if (param.flagReadOnly === true) {
+				parsedParam.readOnly = true;
+			} else if (param.Description.toLowerCase().includes("write")) {
+				// zWave Alliance typically puts (write only) in the description
+				parsedParam.writeOnly = true;
 			}
-		} catch (e) {
-			console.log(
-				`Error iterating: ${file} - ${getErrorMessage(e, true)}`,
+			parsedParam.allowManualEntry =
+				!parsedParam.readOnly &&
+				param.ConfigurationParameterValues.length <= 1;
+			parsedParam.defaultValue = updateNumberOrDefault(
+				param.DefaultValue,
+				parsedParam.value,
+				parsedParam.minValue, // choose the smallest possible number if no default is given
 			);
-		}
 
-		includedZwaFiles.sort(function (a, b) {
-			return a - b;
-		});
+			// Sanity check some values
+			parsedParam.minValue =
+				parsedParam.minValue <= parsedParam.defaultValue
+					? parsedParam.minValue
+					: parsedParam.defaultValue;
+			parsedParam.maxValue =
+				parsedParam.maxValue >= parsedParam.defaultValue
+					? parsedParam.maxValue
+					: parsedParam.defaultValue;
 
-		for (const referenceDevice of includedZwaFiles) {
-			for (const zwafile of zwaData) {
-				if (zwafile.Id === referenceDevice) {
-					let manual = zwafile?.Documents?.find(
-						(document: any) => document.Type === 1,
-					)?.value;
+			// Setup unsigned
+			if (parsedParam.minValue >= 0) {
+				parsedParam.unsigned = true;
+			} else {
+				delete parsedParam.unsigned;
+			}
 
-					const website_root =
-						"https://products.z-wavealliance.org/ProductManual/File?folder=&filename=";
+			if (typeof parsedParam.description !== "string") {
+				parsedParam.description = "";
+			}
 
-					if (manual) {
-						manual = manual.replace(/ /g, "%20");
-						manual = website_root.concat(manual);
-
-						if (jsonData.metadata) {
-							jsonData.metadata.manual = manual;
-							break;
-						} else {
-							jsonData.metadata = {};
-							jsonData.metadata.manual = manual;
-							break;
-						}
+			// Parse options list if manual entry is disallowed (i.e. options picker)
+			if (
+				parsedParam.allowManualEntry !== true ||
+				(parsedParam.minValue === 0 && parsedParam.maxValue === 0)
+			) {
+				parsedParam.options = [];
+				for (const item of param.ConfigurationParameterValues) {
+					// Values are given as options
+					if (item.From === item.To) {
+						const opt = {
+							label: normalizeDescription(item.Description),
+							value: item.To,
+						};
+						parsedParam.options.push(opt);
+						parsedParam.minValue = Math.min(
+							parsedParam.minValue,
+							item.From,
+						);
+						parsedParam.maxValue = Math.max(
+							parsedParam.maxValue,
+							item.To,
+						);
+					} else {
+						parsedParam.allowManualEntry = true;
+						parsedParam.minValue = Math.min(
+							parsedParam.minValue,
+							item.From,
+						);
+						parsedParam.maxValue = Math.max(
+							parsedParam.maxValue,
+							item.To,
+						);
 					}
 				}
+				paramData.push(parsedParam);
 			}
 		}
+	}
 
-		if (jsonData.metadata) {
-			/*************************************
-			 *   Write the configuration file    *
-			 *************************************/
-			const output =
-				JSONC.stringify(normalizeConfig(jsonData), null, "\t") + "\n";
-			await fs.writeFile(file, output, "utf8");
+	// Reverse loop through paramData to find duplicates
+	for (let i = 0; i <= paramData.length - 1; i++) {
+		// Skip if parameter is undefined
+		if (typeof paramData[i] === "undefined") {
+			continue;
+		}
+		const param = paramData[i];
+
+		for (let j = i + 1; j <= paramData.length - 1; j++) {
+			if (typeof paramData[j] === "undefined") {
+				continue;
+			}
+			const otherParam = paramData[j];
+			if (otherParam.length === 0) {
+				continue;
+			}
+
+			if (degreeOfSimilarity(param, otherParam) === "identical") {
+				addOrUpdateParameter(param, otherParam);
+
+				// Remove duplicate
+				paramData.splice(j, 1);
+			} else if (
+				degreeOfSimilarity(param, otherParam) === "medium" &&
+				!param.label.toLowerCase().includes("user code")
+			) {
+				console.clear();
+				console.log(
+					`Comparing ${param.label}, parameter ${param["#"]} with ${otherParam.label}, parameter ${otherParam["#"]}`,
+				);
+				compareParamsOnConsole(param, otherParam);
+
+				const isMatch: boolean = await promptToAdd(param, otherParam);
+				if (isMatch) {
+					addOrUpdateParameter(param, otherParam);
+					// Remove duplicate
+					paramData.splice(j, 1);
+				}
+			}
+		}
+		// Remove original
+		paramData.splice(i, 1);
+	}
+
+	// Clean things up
+	const finalStage = {};
+	for (const param in duplicateParams) {
+		finalStage[param] = {
+			label: duplicateParams[param].label,
+			description: duplicateParams[param].description,
+			counter: duplicateParams[param].counter,
+			equivParameters: duplicateParams[param].manuCounter,
+			valueSize: duplicateParams[param].valueSize,
+			maxValue: duplicateParams[param].maxValue,
+			minValue: duplicateParams[param].minValue,
+			defaultValue: duplicateParams[param].defaultValue,
+		};
+	}
+
+	// Write to file
+	const output = JSONC.stringify(finalStage, null, "\t") + "\n";
+	await fs.writeFile("templateDictionary.json", output, "utf8");
+
+	function addOrUpdateParameter(param: any, testParam: any) {
+		// Add parameter
+		if (!duplicateParams[param.label]) {
+			duplicateParams[param.label] = param;
+			duplicateParams[param.label].manuCounter = {};
+		}
+
+		// Initialize or update counter
+		if (!duplicateParams[param.label].counter) {
+			duplicateParams[param.label].counter = 2;
+		} else {
+			duplicateParams[param.label].counter++;
+		}
+
+		// Initialize or update manufacturer counter
+		if (!duplicateParams[param.label].manuCounter[param.manufacturer]) {
+			duplicateParams[param.label].manuCounter[param.manufacturer] = {};
+		}
+
+		if (!duplicateParams[param.label].manuCounter[testParam.manufacturer]) {
+			duplicateParams[param.label].manuCounter[testParam.manufacturer] =
+				{};
+		}
+
+		duplicateParams[param.label].manuCounter[param.manufacturer][
+			`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`
+		] = param["#"];
+		duplicateParams[param.label].manuCounter[testParam.manufacturer][
+			`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`
+		] = testParam["#"];
+
+		/*if (!duplicateParams[param.label].manuCounter[param.manufacturer]) {
+			duplicateParams[param.label].manuCounter[param.manufacturer] = {
+				[`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`]:
+					param["#"],
+				[`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`]:
+					testParam["#"],
+			};
+		} else if (
+			!duplicateParams[param.label].manuCounter[param.manufacturer][
+				`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`
+			]
+		) {
+			duplicateParams[param.label].manuCounter[param.manufacturer][
+				`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`
+			] = param["#"];
+			duplicateParams[param.label].manuCounter[testParam.manufacturer][
+				`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`
+			] = testParam["#"];
+		}*/
+	}
+
+	function compareParamsOnConsole(
+		originalParam: Record<string, unknown>,
+		testParam: Record<string, unknown>,
+	) {
+		const colors = Colors;
+		const diff = Diff.diffLines(
+			JSONC.stringify(originalParam, null, "\t"),
+			JSONC.stringify(testParam, null, "\t"),
+		);
+
+		diff.forEach((part) => {
+			const color = part.added ? "green" : part.removed ? "red" : "grey";
+			process.stderr.write(part.value[color]);
+		});
+	}
+
+	async function promptUser(query: string) {
+		const readline = await import("readline");
+		const rl = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+
+		return new Promise((resolve) =>
+			rl.question(query, (ans) => {
+				rl.close();
+				resolve(ans);
+			}),
+		);
+	}
+
+	async function promptToAdd(testDevice: string, testNum: string) {
+		const response = await promptUser("Are these equivalent?");
+
+		if (response == "Y" || response == "y") {
+			return true;
+		} else {
+			return false;
 		}
 	}
 }
