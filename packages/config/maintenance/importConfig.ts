@@ -1545,7 +1545,7 @@ function degreeOfSimilarity(
 	) {
 		return "identical";
 	} else if (
-		normalizedDistance < 0.15 &&
+		normalizedDistance < 0.4 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.defaultValue === testParam.defaultValue &&
@@ -1553,14 +1553,14 @@ function degreeOfSimilarity(
 	) {
 		return "medium";
 	} else if (
-		normalizedDistance < 0.15 &&
+		normalizedDistance < 0.4 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.valueSize === testParam.valueSize
 	) {
 		return "medium";
 	} else if (
-		normalizedDistance < 0.15 &&
+		normalizedDistance < 0.4 &&
 		originalParam.minValue === testParam.minValue &&
 		originalParam.maxValue === testParam.maxValue &&
 		originalParam.defaultValue === testParam.defaultValue
@@ -1572,130 +1572,80 @@ function degreeOfSimilarity(
 }
 
 async function maintenanceParse(): Promise<void> {
-	// Parse json files in the zwaTempDir
-	let zwaData = [];
-
-	// Load the zwa files
-	await fs.ensureDir(zwaTempDir);
-	const zwaFiles = await enumFilesRecursive(zwaTempDir, (file) =>
+	// Build the list of device files
+	const configFiles = await enumFilesRecursive(processedDir, (file) =>
 		file.endsWith(".json"),
 	);
-	for (const file of zwaFiles) {
-		// zWave Alliance numbering isn't always continuous and an html page is
-		// returned when a device number doesn't. Test for and delete such files.
+	let jsonData = {};
+
+	for (const file of configFiles) {
+		const j = await fs.readFile(file, "utf8");
+
 		try {
-			zwaData.push(await fs.readJSON(file, { encoding: "utf8" }));
-		} catch {
-			await fs.unlink(file);
+			jsonData[file] = JSONC.parse(j);
+		} catch (e) {
+			console.log(
+				`Error processing: ${file} - ${getErrorMessage(e, true)}`,
+			);
 		}
 	}
-	zwaData = combineDeviceFiles(zwaData);
-	//zwaData = sanitizeFields(zwaData);
+
 	const paramData = [];
 	const duplicateParams = {};
 	// Build object of all parameters, with counts
-	for (const file of zwaData) {
+	for (const file in jsonData) {
 		if (
-			!file.ProductId ||
-			!file.ConfigurationParameters ||
-			file.ConfigurationParameters.length === 0
+			!jsonData[file].devices ||
+			!jsonData[file].paramInformation ||
+			jsonData[file].paramInformation.length === 0
 		) {
 			continue;
 		}
 
-		for (const param of file.ConfigurationParameters) {
+		for (const param of jsonData[file].paramInformation) {
 			const parsedParam = {};
 			// By default, update existing properties with new descriptions
-			const manufacturerIdHex = file.ManufacturerId.replace(/^0x/, "");
-			parsedParam.manufacturer = formatId(manufacturerIdHex);
-			parsedParam.ProductId = file.ProductId;
-			parsedParam.ProductTypeId = file.ProductTypeId;
-			parsedParam.origin = file.Id;
-			parsedParam["#"] = param.ParameterNumber.toString();
-			parsedParam.label = param.Name;
-			parsedParam.label = normalizeLabel(parsedParam.label);
-			parsedParam.description =
-				param.ConfigurationParameterValues.length > 1 // Sometimes values options are described and not presented as options
-					? param.Description
-					: param.ConfigurationParameterValues[0].Description;
-			parsedParam.description = normalizeDescription(
-				parsedParam.description,
-			);
-			parsedParam.valueSize = param.Size;
-			parsedParam.minValue = param.minValue;
-			parsedParam.maxValue = param.maxValue;
-			if (param.flagReadOnly === true) {
-				parsedParam.readOnly = true;
-			} else if (param.Description.toLowerCase().includes("write")) {
-				// zWave Alliance typically puts (write only) in the description
-				parsedParam.writeOnly = true;
-			}
-			parsedParam.allowManualEntry =
-				!parsedParam.readOnly &&
-				param.ConfigurationParameterValues.length <= 1;
-			parsedParam.defaultValue = updateNumberOrDefault(
-				param.DefaultValue,
-				parsedParam.value,
-				parsedParam.minValue, // choose the smallest possible number if no default is given
-			);
-
-			// Sanity check some values
-			parsedParam.minValue =
-				parsedParam.minValue <= parsedParam.defaultValue
-					? parsedParam.minValue
-					: parsedParam.defaultValue;
-			parsedParam.maxValue =
-				parsedParam.maxValue >= parsedParam.defaultValue
-					? parsedParam.maxValue
-					: parsedParam.defaultValue;
-
-			// Setup unsigned
-			if (parsedParam.minValue >= 0) {
-				parsedParam.unsigned = true;
-			} else {
-				delete parsedParam.unsigned;
-			}
-
-			if (typeof parsedParam.description !== "string") {
-				parsedParam.description = "";
-			}
-
-			// Parse options list if manual entry is disallowed (i.e. options picker)
-			if (
-				parsedParam.allowManualEntry !== true ||
-				(parsedParam.minValue === 0 && parsedParam.maxValue === 0)
-			) {
-				parsedParam.options = [];
-				for (const item of param.ConfigurationParameterValues) {
-					// Values are given as options
-					if (item.From === item.To) {
-						const opt = {
-							label: normalizeDescription(item.Description),
-							value: item.To,
-						};
-						parsedParam.options.push(opt);
-						parsedParam.minValue = Math.min(
-							parsedParam.minValue,
-							item.From,
-						);
-						parsedParam.maxValue = Math.max(
-							parsedParam.maxValue,
-							item.To,
-						);
-					} else {
-						parsedParam.allowManualEntry = true;
-						parsedParam.minValue = Math.min(
-							parsedParam.minValue,
-							item.From,
-						);
-						parsedParam.maxValue = Math.max(
-							parsedParam.maxValue,
-							item.To,
-						);
+			parsedParam.manufacturer = jsonData[file].manufacturerId;
+			const includedZwaFiles = [];
+			try {
+				for (const device of jsonData[file].devices) {
+					if (isArray(device.zwaveAllianceId)) {
+						includedZwaFiles.push(...device.zwaveAllianceId);
+					} else if (device.zwaveAllianceId) {
+						includedZwaFiles.push(device.zwaveAllianceId);
 					}
 				}
-				paramData.push(parsedParam);
+			} catch (e) {
+				console.log(
+					`Error iterating: ${file} - ${getErrorMessage(e, true)}`,
+				);
 			}
+			parsedParam.origin = includedZwaFiles;
+			parsedParam.ProductId = jsonData[file].devices[0].productId;
+			parsedParam.ProductTypeId = jsonData[file].devices[0].productType;
+			parsedParam["#"] = param["#"] as string;
+			parsedParam.label = param.label;
+			parsedParam.description = param.description ?? "";
+			parsedParam.valueSize = param.valueSize;
+			parsedParam.minValue = param.minValue;
+			parsedParam.maxValue = param.maxValue;
+			parsedParam.defaultValue = param.defaultValue;
+			if (param.readOnly) {
+				parsedParam.readOnly = true;
+			}
+			if (param.writeOnly) {
+				parsedParam.writeOnly = true;
+			}
+			if (param.unsigned) {
+				parsedParam.unsigned = true;
+			}
+			if (param.allowManualEntry) {
+				parsedParam.allowManualEntry = true;
+			}
+			if (param.options) {
+				parsedParam.options = param.options;
+			}
+			paramData.push(parsedParam);
 		}
 	}
 
@@ -1760,7 +1710,7 @@ async function maintenanceParse(): Promise<void> {
 
 	// Write to file
 	const output = JSONC.stringify(finalStage, null, "\t") + "\n";
-	await fs.writeFile("templateDictionary.json", output, "utf8");
+	await fs.writeFile("templateCurrentDictionary.json", output, "utf8");
 
 	function addOrUpdateParameter(param: any, testParam: any) {
 		// Add parameter
@@ -1792,26 +1742,6 @@ async function maintenanceParse(): Promise<void> {
 		duplicateParams[param.label].manuCounter[testParam.manufacturer][
 			`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`
 		] = testParam["#"];
-
-		/*if (!duplicateParams[param.label].manuCounter[param.manufacturer]) {
-			duplicateParams[param.label].manuCounter[param.manufacturer] = {
-				[`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`]:
-					param["#"],
-				[`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`]:
-					testParam["#"],
-			};
-		} else if (
-			!duplicateParams[param.label].manuCounter[param.manufacturer][
-				`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`
-			]
-		) {
-			duplicateParams[param.label].manuCounter[param.manufacturer][
-				`${param.manufacturer}:${param.ProductTypeId}:${param.ProductId}:${param.origin}`
-			] = param["#"];
-			duplicateParams[param.label].manuCounter[testParam.manufacturer][
-				`${testParam.manufacturer}:${testParam.ProductTypeId}:${testParam.ProductId}:${testParam.origin}`
-			] = testParam["#"];
-		}*/
 	}
 
 	function compareParamsOnConsole(
